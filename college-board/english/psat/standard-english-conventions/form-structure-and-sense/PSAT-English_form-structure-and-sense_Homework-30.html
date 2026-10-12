@@ -92,9 +92,9 @@ const LS={get(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch{re
 const fmt=s=>{s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 
 
-const D=CFG.qs,N=D.length,KEY='clc-'+CFG.slug;
+const _R=(new URLSearchParams(location.search).get('retry')||'').split(',').filter(Boolean),D=_R.length?CFG.qs.filter(q=>_R.includes(String(q.n))):CFG.qs,N=D.length,KEY='clc-'+CFG.slug+(_R.length?'-retry':'');
 let name="",picks=Array(N).fill(""),endAt=0,tmr=null,submitted=false;
-$('badge').textContent=CFG.badge;$('ttl').textContent=CFG.title;
+$('badge').textContent=CFG.badge+(_R.length?' · Retry of missed questions':'');$('ttl').textContent=CFG.title;
 $('intro').textContent=N+' multiple-choice questions. Choose one answer per question.'+(CFG.minutes?(' You have '+CFG.minutes+' minutes — the timer starts when you press Begin and the test is submitted automatically when time runs out.'):' There is no time limit.')+' Your results, with a full explanation for every question, can be saved as a PDF for your teacher.';
 const sid=()=>name.trim().normalize('NFKC').toLocaleLowerCase();
 const hist=()=>{const h=LS.get(KEY);return Array.isArray(h)?h:[]};
@@ -116,7 +116,7 @@ function tick(){const left=(endAt-Date.now())/1000;$('tm').textContent='⏱ '+fm
 function begin(){
  const v=$('nm').value.trim();if(!v){$('nmerr').classList.remove('hide');$('nm').focus();return}
  name=v;submitted=false;picks=Array(N).fill('');$('who').textContent=name;buildTest();prog();show('s-test');
- if(CFG.minutes){$('tm').classList.remove('hide');endAt=Date.now()+CFG.minutes*60000;clearInterval(tmr);tmr=setInterval(tick,250);tick()}
+ if(CFG.minutes&&!_R.length){$('tm').classList.remove('hide');endAt=Date.now()+CFG.minutes*60000;clearInterval(tmr);tmr=setInterval(tick,250);tick()}
 }
 $('start').onclick=begin;$('nm').addEventListener('keydown',e=>{if(e.key==='Enter')begin()});
 let confirmSub=false;

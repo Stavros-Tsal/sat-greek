@@ -10,7 +10,9 @@
 // ═══════════════════════════════════════════════════════════════════
 (function () {
   var ADMIN_EMAIL = 'stavrostsalapatis@gmail.com';
-  var CFG = {
+  // NOTE: named FB_CFG (not CFG) on purpose — the quiz pages declare their own
+  // global `CFG`, and captureMisses() below reads it by name.
+  var FB_CFG = {
     apiKey: 'AIzaSyAkUxve_zohtR45XPKYmfAX8VGTk_ClR5g',
     authDomain: 'sat-greek-quiz-stavros.firebaseapp.com',
     projectId: 'sat-greek-quiz-stavros',
@@ -39,7 +41,7 @@
         if (!firebase.auth) await loadScript(SDK + 'firebase-auth-compat.js');
         if (!firebase.firestore) await loadScript(SDK + 'firebase-firestore-compat.js');
       }
-      var app = firebase.apps.length ? firebase.app() : firebase.initializeApp(CFG);
+      var app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FB_CFG);
       var auth = firebase.auth(app), db = firebase.firestore(app);
       var user = await new Promise(function (res) {
         var done = false;
@@ -83,6 +85,32 @@
     return m ? { subject: 'math', chapter: 'Fast Track', skill: 'Module ' + m[1], kind: 'FastTrack', ref: 'module' + m[1] + '_part' + m[2], part: +m[2] } : null;
   }
 
+  // ── per-question capture (error log) ──
+  // Quiz pages call clcReport({src:'cb', correct, total}) from inside their own
+  // finish() handler, so their top-level state is still in scope. Instead of
+  // editing 130+ generated pages, read it from here:
+  //   Math pages    : CFG.qs[i] = {n, key, …},  picks[i] = chosen letter
+  //   English pages : DATA.questions[i] = {id, answer, …}, state.answers[id]
+  // Adds: page (site-relative path), right[] / wrong[] (question ids as
+  // strings; unanswered counts as wrong), retry (true when the page was opened
+  // with ?retry=… and only a subset of questions was shown).
+  // Never throws; if nothing is detected the record is left untouched.
+  function captureMisses(rec) {
+    try {
+      if (rec.src !== 'cb' || rec.wrong || rec.right) return;
+      var right = [], wrong = [];
+      if (typeof CFG !== 'undefined' && typeof D !== 'undefined' && typeof picks !== 'undefined' && Array.isArray(D)) {
+        D.forEach(function (d, i) { (picks[i] && picks[i] === d.key ? right : wrong).push(String(d.n)); });
+      } else if (typeof DATA !== 'undefined' && typeof state !== 'undefined' && DATA.questions) {
+        DATA.questions.forEach(function (q) { (state.answers && state.answers[q.id] === q.answer ? right : wrong).push(String(q.id)); });
+      } else return;
+      rec.right = right; rec.wrong = wrong;
+      var m = decodeURIComponent(location.pathname).match(/(college-board\/.+\.html)$/i);
+      if (m) rec.page = m[1];
+      if (/[?&]retry=/.test(location.search)) rec.retry = true;
+    } catch (e) { /* ignore */ }
+  }
+
   function normalize(rec) {
     var r = {};
     var base = (rec.src === 'fasttrack' ? fromFastTrack() : (rec.src === 'cb' || rec.src === 'rq') ? fromPath() : null) || {};
@@ -123,6 +151,7 @@
 
   window.clcReport = async function (rec) {
     try {
+      captureMisses(rec);
       var r = normalize(rec);
       if (!r.total) return;
       r.clientTs = new Date().toISOString();

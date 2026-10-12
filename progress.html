@@ -156,9 +156,52 @@ function summaryCards(att) {
   return '<div class="cards">' + cards.map(c => '<div class="card"><div class="v">' + c[1] + '</div><div class="l">' + c[0] + '</div><div class="l">' + c[2] + '</div></div>').join('') + '</div>';
 }
 
+// ── Open mistakes (error log) ──
+// A question is an "open mistake" when its most recent recorded attempt was wrong
+// (or unanswered). Re-solving it correctly — in a normal run or via the retry
+// link — closes it. Attempts recorded before this feature have no per-question
+// data and are simply not part of the log.
+function attTime(x) { return x.clientTs || (x.ts && x.ts.toDate ? x.ts.toDate().toISOString() : '') || ''; }
+function mistakesSection(all, canPractice) {
+  const rows = all.filter(x => x.src === 'cb' && x.page && (x.wrong || x.right)).sort((a, b) => attTime(a) < attTime(b) ? -1 : attTime(a) > attTime(b) ? 1 : 0);
+  if (!rows.length) return '<p class="small">Το ιστορικό λαθών ξεκινά από τώρα: θα εμφανιστεί μόλις ολοκληρωθεί ένα Homework ή Review.</p>';
+  const pages = new Map();
+  rows.forEach(a => {
+    let p = pages.get(a.page); if (!p) { p = { meta: a, q: new Map() }; pages.set(a.page, p); }
+    p.meta = a;
+    (a.right || []).forEach(id => p.q.set(String(id), false));
+    (a.wrong || []).forEach(id => p.q.set(String(id), true));
+  });
+  const items = [];
+  pages.forEach((p, page) => {
+    const open = [...p.q.entries()].filter(e => e[1]).map(e => e[0]);
+    if (open.length) items.push({ page, meta: p.meta, open: open.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) });
+  });
+  if (!items.length) return '<div class="card"><div class="v">0</div><div class="l">Δεν έχεις ανοιχτά λάθη. Μπράβο!</div></div>';
+  items.sort((a, b) => b.open.length - a.open.length);
+  const total = items.reduce((s, x) => s + x.open.length, 0);
+  let h = '<p class="small">Ερωτήσεις που η τελευταία σου απάντηση ήταν λάθος ή κενή. ' + (canPractice ? 'Πάτα «Ξανά τα λάθη» και λύνεις μόνο αυτές — όταν τις απαντήσεις σωστά κλείνουν.' : '') + '</p>';
+  h += '<div class="cards" style="margin-bottom:10px"><div class="card"><div class="v">' + total + '</div><div class="l">ανοιχτά λάθη σε ' + items.length + ' σετ</div></div></div>';
+  h += '<table><tr><th>Skill / σετ</th><th class="n">Ανοιχτά</th><th>Ερωτήσεις</th><th></th></tr>';
+  items.forEach(it => {
+    const m = it.meta, num = (String(m.ref || '').match(/-(\d+)$/) || [])[1];
+    const label = esc(chName(m.chapter || '')) + ' · ' + esc(skName(m.skill)) + ' — ' + esc(m.kind || '') + (num ? ' ' + esc(num) : '') + (m.subject === 'english' ? ' <span class="small">(English)</span>' : '');
+    let act = '';
+    if (canPractice) {
+      const href = encodeURI(it.page) + (m.subject === 'math' ? '?retry=' + it.open.map(encodeURIComponent).join(',') : '');
+      act = '<a class="back" href="' + href + '">' + (m.subject === 'math' ? 'Ξανά τα λάθη (' + it.open.length + ')' : 'Άνοιγμα') + '</a>';
+    }
+    h += '<tr><td>' + label + '</td><td class="n"><b>' + it.open.length + '</b></td><td class="small">' + (m.subject === 'math' ? it.open.map(esc).join(', ') : '—') + '</td><td class="n">' + act + '</td></tr>';
+  });
+  return h + '</table>';
+}
+
 function renderReport(att, who) {
   if (!att.length) { $('main').innerHTML = '<div class="msg">Δεν υπάρχουν καταγεγραμμένα αποτελέσματα' + (who ? ' για ' + esc(who) : '') + ' ακόμα.</div>'; return; }
+  const everything = att;                       // incl. retry runs (needed by the error log)
+  att = att.filter(x => !x.retry);              // retry runs are a subset of a test: keep them out of the % statistics
   let h = summaryCards(att);
+  h += '<h2>Ανοιχτά λάθη — εξάσκηση στα αδύναμα σημεία</h2>' + mistakesSection(everything, !who);
   h += '<h2>College Board — Math (Homework / Review ανά skill)</h2>' + cbTable(att, 'math', MATH_ORDER);
   h += '<h2>College Board — English (Homework / Review ανά skill)</h2>' + cbTable(att, 'english', EN_ORDER);
   h += '<h2>College Board — Related Questions (English)</h2>' + rqTable(att);
@@ -183,7 +226,7 @@ async function loadAll() {
 }
 
 function adminOverview() {
-  const by = groupBy(ALL, x => x.email);
+  const by = groupBy(ALL.filter(x => !x.retry), x => x.email);
   const emails = [...by.keys()].sort();
   let h = '<h2>Όλοι οι μαθητές</h2><table><tr><th>Μαθητής</th><th class="n">Ομάδα</th><th class="n">CB Math</th><th class="n">CB English</th><th class="n">Rel. Q.</th><th class="n">Drills</th><th class="n">Fast Track</th><th class="n">Math Tests</th><th class="n">Full Tests</th></tr>';
   const sc = (a, src) => { const v = a.filter(x => x.src === src && x.score != null).map(x => x.score); return v.length ? r1(v.reduce((s, y) => s + y, 0) / v.length) : '—'; };
