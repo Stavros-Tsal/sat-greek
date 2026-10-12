@@ -3689,7 +3689,7 @@ function renderTestNav() {
     <button class="nav-btn secondary" onclick="goTestTo(${s.current-1})" ${s.current===0?'disabled':''}>← Previous</button>
     <span style="font-size:13px;color:var(--muted)">${s.current+1} / ${qs.length}</span>
     ${isLast
-      ? `<button class="nav-btn primary" onclick="finishCurrentModule()" ${!answered?'disabled':''}>${s.moduleIdx===1?'Finish Module 1 →':'See Results →'}</button>`
+      ? `<button class="nav-btn primary" onclick="openModuleReview()">Review &amp; finish →</button>`
       : `<button class="nav-btn primary" onclick="goTestTo(${s.current+1})">Next →</button>`
     }
   `;
@@ -3877,6 +3877,7 @@ function showFinalResults() {
       </div>
       <h2 class="score-title">${grade}</h2>
       <p class="score-subtitle">${subtitle}</p>
+      <p class="score-subtitle" style="font-size:12px;opacity:.8;">Percentage-based estimate (correct ÷ total × ${maxScore}). Not an official scaled score — the real SAT is adaptive and scored on a different scale.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:20px 0;">
         <button class="restart-btn" onclick="promptResultsPDF()">📄 Results PDF</button>
         <button class="restart-btn" onclick="startTestModule1(${testId})">Retake Test ${testId}</button>
@@ -4115,17 +4116,23 @@ function generateFullReport(studentName) {
 function startTestTimer() {
   if (testTimerInterval) clearInterval(testTimerInterval);
   testTimerPaused = false;
+  // Real elapsed time (not "one tick = one second"): browsers throttle timers in
+  // background tabs, which used to freeze the clock.
+  let remainingMs = testTimerSeconds * 1000, last = Date.now();
   testTimerInterval = setInterval(() => {
+    const now = Date.now(), dt = now - last;
+    last = now;
     if (testTimerPaused) return;
-    testTimerSeconds--;
+    remainingMs -= dt;
+    testTimerSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
     updateTestTimerDisplay();
-    if (testTimerSeconds <= 0) {
+    if (remainingMs <= 0) {
       clearInterval(testTimerInterval);
       testTimerSeconds = 0;
       updateTestTimerDisplay();
       finishCurrentModule();
     }
-  }, 1000);
+  }, 250);
 }
 
 function updateTestTimerDisplay() {
@@ -4181,6 +4188,152 @@ function resetTestTimer() {
   updateTestTimerDisplay();
   startTestTimer();
 }
+// ══════════════ TEST SESSION: resume, review screen ══════════════
+// • The running test is saved to localStorage (answers, bookmarks, crossed-out
+//   options, module, time left) so a refresh / closed tab / crash can resume.
+//   Time does not run while the page is closed.
+// • Last question → "Review & finish" screen listing unanswered / bookmarked
+//   questions before the module is submitted (like Bluebook's review page).
+const TEST_SESSION_KEY = 'clc_test_session_v1';
+let testSessionActive = false;
+let testPhase = 'quiz';   // 'quiz' | 'break'
+
+function testSessionEmail() {
+  try { return ((fbAuth && fbAuth.currentUser && fbAuth.currentUser.email) || '').toLowerCase(); } catch (e) { return ''; }
+}
+function saveTestSession() {
+  if (!testSessionActive) return;
+  try {
+    const s = testState, m1 = testResults.m1;
+    const elim = {};
+    Object.keys(s.eliminated || {}).forEach(k => { elim[k] = [...s.eliminated[k]]; });
+    localStorage.setItem(TEST_SESSION_KEY, JSON.stringify({
+      v: 1, savedAt: Date.now(), email: testSessionEmail(), phase: testPhase,
+      testId: s.testId, moduleIdx: s.moduleIdx, current: s.current,
+      answered: s.answered, bookmarks: [...s.bookmarks], eliminated: elim,
+      remaining: testTimerSeconds, duration: currentModuleDurationSeconds,
+      dur: selectedDuration[s.testId] || 35,
+      m1: m1 ? { correctCount: m1.correctCount, scaledScore: m1.scaledScore, total: m1.total, answered: m1.answered, bookmarks: [...m1.bookmarks] } : null
+    }));
+  } catch (e) { /* storage full / unavailable — resume just won't be offered */ }
+}
+function clearTestSession() {
+  testSessionActive = false;
+  try { localStorage.removeItem(TEST_SESSION_KEY); } catch (e) {}
+}
+function loadTestSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(TEST_SESSION_KEY) || 'null');
+    if (!s || s.v !== 1 || !TEST_DATA[s.testId]) return null;
+    if (Date.now() - s.savedAt > 3 * 24 * 3600 * 1000) return null;     // stale after 3 days
+    const me = testSessionEmail();
+    if (s.email && me && s.email !== me) return null;                    // someone else's session on a shared browser
+    return s;
+  } catch (e) { return null; }
+}
+
+function renderResumeBanner() {
+  const host = document.getElementById('screen-test-list');
+  if (!host) return;
+  const old = document.getElementById('test-resume-banner'); if (old) old.remove();
+  const s = loadTestSession(); if (!s) return;
+  const t = Math.max(0, s.remaining | 0);
+  const where = s.phase === 'break'
+    ? `Test ${s.testId} — break before Module 2`
+    : `Test ${s.testId} · Module ${s.moduleIdx} · ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')} left`;
+  const el = document.createElement('div');
+  el.id = 'test-resume-banner';
+  el.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:#fff7e0;border:1px solid #f0c36d;color:#5a4300;border-radius:12px;padding:12px 16px;margin:0 0 16px;font-size:14px;';
+  el.innerHTML = `<span><b>Unfinished test</b> — ${where}</span>` +
+    `<span style="display:flex;gap:8px"><button class="nav-btn primary" onclick="resumeTestSession()">Resume</button>` +
+    `<button class="nav-btn secondary" onclick="discardTestSession()">Discard</button></span>`;
+  host.insertBefore(el, host.firstChild);
+}
+function discardTestSession() {
+  clearTestSession();
+  const el = document.getElementById('test-resume-banner'); if (el) el.remove();
+}
+function resumeTestSession() {
+  const s = loadTestSession(); if (!s) return;
+  testResults = { m1: null, m2: null };
+  if (s.m1) testResults.m1 = { correctCount: s.m1.correctCount, scaledScore: s.m1.scaledScore, total: s.m1.total, answered: s.m1.answered || {}, bookmarks: new Set(s.m1.bookmarks || []), questions: TEST_DATA[s.testId].m1 };
+  const elim = {};
+  Object.keys(s.eliminated || {}).forEach(k => { elim[k] = new Set(s.eliminated[k]); });
+  testState = { testId: s.testId, moduleIdx: s.moduleIdx, current: s.current || 0, score: 0, answered: s.answered || {}, bookmarks: new Set(s.bookmarks || []), eliminated: elim };
+  selectedDuration[s.testId] = s.dur || 35;
+  testSessionActive = true;
+  if (s.phase === 'break') { startTestModule2(); return; }
+  const hasModule2 = !!(TEST_DATA[s.testId].m2 && TEST_DATA[s.testId].m2.length);
+  document.getElementById('test-module-label').textContent = s.moduleIdx === 2
+    ? `Practice Test — Test ${s.testId} · Module 2`
+    : (hasModule2 ? `Practice Test — Test ${s.testId} · Module 1` : `Practice Test — Test ${s.testId}`);
+  goScreen('screen-test-quiz');
+  renderTestQuestion();
+  currentModuleDurationSeconds = s.duration || currentModuleDurationSeconds;
+  testTimerSeconds = Math.max(1, s.remaining | 0);
+  testTimerPaused = false; testTimerHidden = false;
+  updateTestTimerDisplay();
+  startTestTimer();
+  saveTestSession();
+}
+
+// ── Review & finish ──
+function closeModuleReview() { const o = document.getElementById('module-review-overlay'); if (o) o.remove(); }
+function reviewGoTo(i) { closeModuleReview(); goTestTo(i); }
+function openModuleReview() {
+  closeModuleReview();
+  const s = testState, qs = currentTestQuestions();
+  let un = 0, bm = 0, cells = '';
+  qs.forEach((_, i) => {
+    const a = s.answered[i] !== undefined && s.answered[i] !== '', b = s.bookmarks.has(i);
+    if (!a) un++;
+    if (b) bm++;
+    cells += `<button class="qdot ${a ? 'qdot-answered' : ''} ${b ? 'qdot-bm' : ''}" onclick="reviewGoTo(${i})" title="Q${i + 1}${b ? ' · bookmarked' : ''}${a ? '' : ' · unanswered'}">${i + 1}${b ? '<span class="bm-dot"></span>' : ''}</button>`;
+  });
+  const hasM2 = !!(TEST_DATA[s.testId].m2 && TEST_DATA[s.testId].m2.length);
+  const submitLabel = (s.moduleIdx === 1 && hasM2) ? 'Submit Module 1' : 'Submit &amp; see results';
+  const o = document.createElement('div');
+  o.id = 'module-review-overlay';
+  o.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(10,20,40,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
+  o.innerHTML = `<div role="dialog" aria-modal="true" aria-label="Review your answers" style="background:var(--card);border-radius:16px;padding:24px;max-width:560px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.35);">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px;">
+      <h2 style="margin:0;font-size:20px;">Review your answers</h2>
+      <span id="module-review-timer" style="font-variant-numeric:tabular-nums;font-weight:700;">${document.getElementById('test-timer-display') ? document.getElementById('test-timer-display').textContent : ''}</span>
+    </div>
+    <p style="margin:6px 0 14px;color:var(--muted);font-size:14px;">
+      ${un ? `<b style="color:#b3261e">${un} unanswered</b>` : '<b style="color:#1e7b46">All questions answered</b>'}${bm ? ` · ${bm} bookmarked` : ''}. Click a number to go back to that question.
+    </p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;">${cells}</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="nav-btn secondary" onclick="closeModuleReview()">Back to questions</button>
+      <button class="nav-btn primary" onclick="finishCurrentModule()">${submitLabel} →</button>
+    </div></div>`;
+  document.body.appendChild(o);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModuleReview(); });
+
+// Hook the existing engine without touching its functions: wrap by name.
+(function () {
+  const wrap = (name, after) => {
+    const f = window[name];
+    window[name] = function () { const r = f.apply(this, arguments); try { after.apply(this, arguments); } catch (e) { console.warn(name, e); } return r; };
+  };
+  ['chooseTestMCQ', 'checkTestOpen', 'toggleEliminateOption', 'toggleTestBookmark', 'goTestTo'].forEach(n => wrap(n, saveTestSession));
+  wrap('startTestModule1', () => { testSessionActive = true; testPhase = 'quiz'; saveTestSession(); });
+  wrap('startTestModule2', () => { testSessionActive = true; testPhase = 'quiz'; saveTestSession(); });
+  wrap('goToBreak', () => { testPhase = 'break'; saveTestSession(); });
+  wrap('showFinalResults', clearTestSession);
+  wrap('finishCurrentModule', closeModuleReview);
+  wrap('updateTestTimerDisplay', () => {
+    const e = document.getElementById('module-review-timer');
+    if (e) e.textContent = testTimerHidden ? '--:--' : document.getElementById('test-timer-display').textContent;
+  });
+  wrap('goScreen', id => { if (id === 'screen-test-list') renderResumeBanner(); });
+  setInterval(saveTestSession, 10000);
+  document.addEventListener('visibilitychange', saveTestSession);
+  window.addEventListener('pagehide', saveTestSession);
+})();
+
 // ══════════════ END PRACTICE TEST — TEST 1 ══════════════
 
 // Init all quizzes

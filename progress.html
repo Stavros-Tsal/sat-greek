@@ -162,9 +162,8 @@ function summaryCards(att) {
 // link — closes it. Attempts recorded before this feature have no per-question
 // data and are simply not part of the log.
 function attTime(x) { return x.clientTs || (x.ts && x.ts.toDate ? x.ts.toDate().toISOString() : '') || ''; }
-function mistakesSection(all, canPractice) {
+function openMistakeItems(all) {
   const rows = all.filter(x => x.src === 'cb' && x.page && (x.wrong || x.right)).sort((a, b) => attTime(a) < attTime(b) ? -1 : attTime(a) > attTime(b) ? 1 : 0);
-  if (!rows.length) return '<p class="small">Το ιστορικό λαθών ξεκινά από τώρα: θα εμφανιστεί μόλις ολοκληρωθεί ένα Homework ή Review.</p>';
   const pages = new Map();
   rows.forEach(a => {
     let p = pages.get(a.page); if (!p) { p = { meta: a, q: new Map() }; pages.set(a.page, p); }
@@ -177,6 +176,12 @@ function mistakesSection(all, canPractice) {
     const open = [...p.q.entries()].filter(e => e[1]).map(e => e[0]);
     if (open.length) items.push({ page, meta: p.meta, open: open.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) });
   });
+  return { hasData: rows.length > 0, items };
+}
+function mistakesSection(all, canPractice) {
+  const r = openMistakeItems(all);
+  if (!r.hasData) return '<p class="small">Το ιστορικό λαθών ξεκινά από τώρα: θα εμφανιστεί μόλις ολοκληρωθεί ένα Homework ή Review.</p>';
+  const items = r.items;
   if (!items.length) return '<div class="card"><div class="v">0</div><div class="l">Δεν έχεις ανοιχτά λάθη. Μπράβο!</div></div>';
   items.sort((a, b) => b.open.length - a.open.length);
   const total = items.reduce((s, x) => s + x.open.length, 0);
@@ -225,21 +230,56 @@ async function loadAll() {
   return s.docs.map(d => d.data());
 }
 
+let ADMIN_SORT = 'quiet';
+function setAdminSort(v) { ADMIN_SORT = v; $('main').innerHTML = adminOverview(); }
 function adminOverview() {
-  const by = groupBy(ALL.filter(x => !x.retry), x => x.email);
-  const emails = [...by.keys()].sort();
-  let h = '<h2>Όλοι οι μαθητές</h2><table><tr><th>Μαθητής</th><th class="n">Ομάδα</th><th class="n">CB Math</th><th class="n">CB English</th><th class="n">Rel. Q.</th><th class="n">Drills</th><th class="n">Fast Track</th><th class="n">Math Tests</th><th class="n">Full Tests</th></tr>';
+  const by = groupBy(ALL.filter(x => !x.retry), x => x.email);     // statistics: retry runs excluded
+  const full = groupBy(ALL, x => x.email);                          // error log: everything
+  const emails = [...new Set([...by.keys(), ...Object.keys(STUDENTS)])];   // incl. registered students with no activity
+  const now = Date.now(), DAY = 864e5;
   const sc = (a, src) => { const v = a.filter(x => x.src === src && x.score != null).map(x => x.score); return v.length ? r1(v.reduce((s, y) => s + y, 0) / v.length) : '—'; };
   const pc = (v) => v == null ? '—' : v + '%';
-  emails.forEach(em => {
-    const a = by.get(em), cb = a.filter(x => x.src === 'cb');
-    const st = STUDENTS[em] || {};
-    h += '<tr><td><a href="#" onclick="pick(\'' + esc(em) + '\');return false">' + esc(st.name || (a.find(x => x.name) || {}).name || em) + '</a><div class="small">' + esc(em) + '</div></td><td class="n">' + esc(st.group || '—') + '</td>' +
+  const rows = emails.map(em => {
+    const a = by.get(em) || [], cb = a.filter(x => x.src === 'cb'), st = STUDENTS[em] || {};
+    const times = a.map(x => Date.parse(attTime(x))).filter(t => !isNaN(t));
+    const last = times.length ? Math.max(...times) : null;
+    const days = last == null ? null : Math.max(0, Math.floor((now - last) / DAY));
+    const week = times.filter(t => now - t <= 7 * DAY).length;
+    const open = openMistakeItems(full.get(em) || []).items.reduce((s, x) => s + x.open.length, 0);
+    // weakest skill = lowest mean % over College Board attempts, needs >= 2 attempts to count
+    let weak = null;
+    groupBy(cb.filter(x => x.skill), x => (x.subject === 'english' ? 'EN · ' : '') + x.skill).forEach((g, k) => {
+      if (g.length < 2) return;
+      const m = meanPct(g);
+      if (weak == null || m < weak.m) weak = { k, m, n: g.length };
+    });
+    const name = st.name || (a.find(x => x.name) || {}).name || em;
+    return { em, a, cb, st, days, week, open, weak, name };
+  });
+  const quietKey = r => r.days == null ? 1e9 : r.days;
+  rows.sort(ADMIN_SORT === 'name' ? (x, y) => x.name.localeCompare(y.name, 'el')
+    : ADMIN_SORT === 'open' ? (x, y) => y.open - x.open || quietKey(y) - quietKey(x)
+    : (x, y) => quietKey(y) - quietKey(x) || x.name.localeCompare(y.name, 'el'));
+  const inactive = rows.filter(r => r.days == null || r.days >= 7).length;
+  let h = '<h2>Όλοι οι μαθητές</h2>' +
+    '<div class="cards" style="margin-bottom:12px"><div class="card"><div class="v">' + rows.length + '</div><div class="l">μαθητές</div></div>' +
+    '<div class="card"><div class="v" style="color:' + (inactive ? 'var(--low)' : 'var(--ok)') + '">' + inactive + '</div><div class="l">χωρίς δραστηριότητα 7+ ημέρες</div></div>' +
+    '<div class="card"><div class="v">' + rows.reduce((s, r) => s + r.week, 0) + '</div><div class="l">προσπάθειες τις τελευταίες 7 ημέρες</div></div></div>' +
+    '<p class="small">Ταξινόμηση: <select onchange="setAdminSort(this.value)">' +
+    [['quiet', 'Λιγότερο ενεργοί πρώτα'], ['open', 'Περισσότερα ανοιχτά λάθη'], ['name', 'Όνομα']].map(o => '<option value="' + o[0] + '"' + (ADMIN_SORT === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></p>' +
+    '<div style="overflow-x:auto"><table><tr><th>Μαθητής</th><th class="n">Ομάδα</th><th class="n">Τελευταία δραστηριότητα</th><th class="n">7 ημέρες</th><th class="n">Ανοιχτά λάθη</th><th>Αδύναμο skill</th><th class="n">CB Math</th><th class="n">CB English</th><th class="n">Rel. Q.</th><th class="n">Drills</th><th class="n">Fast Track</th><th class="n">Math Tests</th><th class="n">Full Tests</th></tr>';
+  rows.forEach(r => {
+    const a = r.a, cb = r.cb;
+    const act = r.days == null ? '<span style="color:var(--low)"><b>καμία</b></span>'
+      : '<span style="color:' + (r.days >= 7 ? 'var(--low)' : r.days >= 3 ? 'var(--mid)' : 'var(--ok)') + '"><b>' + (r.days === 0 ? 'σήμερα' : r.days + ' μ. πριν') + '</b></span>';
+    h += '<tr><td><a href="#" onclick="pick(\'' + esc(r.em) + '\');return false">' + esc(r.name) + '</a><div class="small">' + esc(r.em) + '</div></td><td class="n">' + esc(r.st.group || '—') + '</td>' +
+      '<td class="n">' + act + '</td><td class="n">' + r.week + '</td><td class="n">' + (r.open ? '<b>' + r.open + '</b>' : '—') + '</td>' +
+      '<td class="small">' + (r.weak ? esc(skName(r.weak.k.replace(/^EN · /, ''))) + (r.weak.k.indexOf('EN · ') === 0 ? ' (EN)' : '') + ' <b>' + r.weak.m + '%</b> · ' + r.weak.n + ' προσπ.' : '—') + '</td>' +
       '<td class="n">' + pc(meanPct(cb.filter(x => x.subject === 'math'))) + '</td><td class="n">' + pc(meanPct(cb.filter(x => x.subject === 'english'))) + '</td>' +
       '<td class="n">' + pc(pooled(a.filter(x => x.src === 'rq'))) + '</td><td class="n">' + pc(pooled(a.filter(x => x.src === 'drill'))) + '</td>' +
       '<td class="n">' + pc(meanPct(a.filter(x => x.src === 'fasttrack'))) + '</td><td class="n">' + sc(a, 'mathtest') + '</td><td class="n">' + sc(a, 'full') + '</td></tr>';
   });
-  return h + '</table>';
+  return h + '</table></div>';
 }
 
 function pick(email) { $('who').value = email; showWho(); window.scrollTo(0, 0); }
