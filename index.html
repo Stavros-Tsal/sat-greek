@@ -1389,6 +1389,11 @@ initAuth();
       <div class="label">College Board</div>
       <div class="desc">Υλικό από το College Board · Math &amp; English</div>
     </div>
+    <div class="subject-card member-only" onclick="goScreen('screen-past-papers')">
+      <div class="icon">🗂️</div>
+      <div class="label">past sat pappers</div>
+      <div class="desc">Past Digital SAT papers · R&amp;W + Math, 4 modules</div>
+    </div>
     <div class="subject-card" onclick="window.open('https://www.youtube.com/@stavrostsalapatis5030','_blank','noopener')" role="link" tabindex="0">
       <div class="icon">▶️</div>
       <div class="label">YouTube Channel</div>
@@ -1396,6 +1401,30 @@ initAuth();
     </div>
   </div>
   <button class="nav-back-btn" onclick="goScreen('screen-welcome')">← Back</button>
+</div>
+
+<!-- ══ SCREEN: PAST SAT PAPERS ══ -->
+<div id="screen-past-papers" class="screen">
+  <h2 class="subject-title">past sat pappers</h2>
+  <p class="subject-sub">Full Digital SAT papers · R&amp;W + Math, 4 modules, χρονόμετρο</p>
+  <div class="mode-cards">
+    <a class="mode-card member-only" href="past-sat-papers/Int-Group1.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
+      <div class="icon">📄</div>
+      <div class="label">Int-Group1</div>
+      <div class="desc">August 2026 · 4 modules με χρονόμετρο</div>
+    </a>
+    <a class="mode-card member-only" href="past-sat-papers/Int-Group2.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
+      <div class="icon">📄</div>
+      <div class="label">Int-Group2</div>
+      <div class="desc">September 2026 · 4 modules με χρονόμετρο</div>
+    </a>
+    <a class="mode-card member-only" href="past-sat-papers/Int-Group3.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
+      <div class="icon">📄</div>
+      <div class="label">Int-Group3</div>
+      <div class="desc">October 2026 · 4 modules με χρονόμετρο</div>
+    </a>
+  </div>
+  <button class="nav-back-btn" onclick="goScreen('screen-subject')">← Back</button>
 </div>
 
 <!-- ══ SCREEN: FULL PRACTICE TEST LIST ══ -->
