@@ -234,6 +234,7 @@ function zoomFit(){ZW=90;$('zimg').style.width='90vw'}
 function closeZoom(){$('zoomov').classList.remove('on')}
 document.addEventListener('click',e=>{const t=e.target;if(t.classList&&t.classList.contains('zoomable'))zoomImg(t.src)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeZoom()});
+window.addEventListener('beforeunload',e=>{if(S.phase==='test'||S.phase==='break'){e.preventDefault();e.returnValue=''}});
 function nextMod(){clearInterval(S.bint);$('timer').textContent='';S.mod++;startMod()}
 function startBreak(){S.bleft=600;const t=()=>{const v=fmt(S.bleft);const e=document.getElementById('brkt');if(e)e.textContent=v;$('timer').textContent='Break '+v};t();clearInterval(S.bint);S.bint=setInterval(()=>{S.bleft--;if(S.bleft<=0){nextMod();return}t()},1000)}
 function modScore(k){const m=MODS[k];let c=0;for(let i=m.s;i<m.e;i++)if(isRight(i))c++;return{c,n:m.e-m.s}}
