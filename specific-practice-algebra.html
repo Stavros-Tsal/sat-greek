@@ -211,6 +211,10 @@
   /* ── "ready" briefing overlay (replaces the browser alert) ── */
   #briefOverlay { position:fixed; inset:0; background:rgba(10,30,55,.55); display:none; align-items:center; justify-content:center; z-index:9999; padding:16px; }
   #briefOverlay.show { display:flex; }
+  .rv-list { text-align:left; margin:14px 0 18px; padding-left:20px; font-size:13.5px; line-height:1.5; color:#333; }
+  .rv-list li { margin-bottom:8px; }
+  .rv-warn { background:#fbe4e2; color:#B3261E; border-radius:10px; padding:10px 14px; font-size:13.5px; text-align:left; margin-top:12px; }
+  .rv-ok { background:#e4f3e8; color:#1F7A3D; border-radius:10px; padding:8px 14px; font-size:13.5px; margin-top:12px; font-weight:700; }
   .brief-card { background:#fff; border-radius:22px; max-width:440px; width:100%; padding:30px 28px 24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.35); position:relative; overflow:hidden; }
   .brief-card::before { content:''; position:absolute; left:0; right:0; top:0; height:6px; background:linear-gradient(90deg,var(--gold),var(--crimson)); }
   .brief-kicker { font-size:11.5px; letter-spacing:2px; text-transform:uppercase; color:#6b7c8f; font-weight:700; }
@@ -247,7 +251,7 @@
     <div id="timer" style="margin-left:0;" onclick="if(state.timerHidden) toggleTimerVisibility()">80:00</div>
     <button class="btn-ghost" id="hideTimerBtn" onclick="toggleTimerVisibility()">Hide Timer</button>
   </div>
-  <button class="btn-primary" id="endReviewBtn" onclick="showReview(true)">End &amp; Review</button>
+  <button class="btn-primary" id="endReviewBtn" onclick="requestReview()">End &amp; Review</button>
 </div>
 
 <div id="app"><div class="screen-center">
@@ -319,9 +323,10 @@ function openCalc() {
 }
 
 function toggleFlag() { const q = QUESTIONS[state.current]; state.flagged[q.id] = !state.flagged[q.id]; render(); }
-function selectChoice(qid, letter) { state.answers[qid] = letter; state.checked[qid] = false; render(); }
-function sprInput(qid, val) { state.answers[qid] = val; state.checked[qid] = false; }
+function selectChoice(qid, letter) { if (state.locked) return; state.answers[qid] = letter; state.checked[qid] = false; render(); }
+function sprInput(qid, val) { if (state.locked) return; state.answers[qid] = val; state.checked[qid] = false; }
 function checkAnswer() {
+  if (state.locked) return;
   const q = QUESTIONS[state.current];
   if (q.type === 'spr') {
     const el = document.querySelector('.spr-input');
@@ -344,7 +349,7 @@ function setCurrent(idx) {
   state.current = idx;
 }
 function goTo(idx) { setCurrent(idx); render(); }
-function nextQ() { const pos = sessionPos(state.current); if (pos < state.sessionOrder.length-1) { setCurrent(state.sessionOrder[pos+1]); render(); } else { showReview(true); } }
+function nextQ() { const pos = sessionPos(state.current); if (pos < state.sessionOrder.length-1) { setCurrent(state.sessionOrder[pos+1]); render(); } else { requestReview(); } }
 function prevQ() { const pos = sessionPos(state.current); if (pos > 0) { setCurrent(state.sessionOrder[pos-1]); render(); } }
 function toggleSkillPanel(skey) {
   if (state.openSkill === skey) { state.openSkill = null; state.openDifficulty = null; }
@@ -464,6 +469,7 @@ function startSession(order, seconds, timed) {
   state.flagged = {};
   state.checked = {};
   state.revealed = {};
+  state.locked = false;
   state.timeLeft = seconds;
   state.timedMode = timed;
   state.openSkill = QUESTIONS[order[0]].skill;
@@ -481,13 +487,46 @@ function startSession(order, seconds, timed) {
 
 function showReview(fromTest) {
   if (state.timerId) clearInterval(state.timerId);
+  if (lockedMode()) state.locked = true; // Skill Builder / Speed Round: results are final
   state.reportGroup = (state.mode === 'skill') ? state.selectedSkill : null;
   state.screen = 'review';
   document.getElementById('toolbar').style.display = 'none';
   render();
 }
 
+function lockedMode() { return state.mode === 'skill' || state.mode === 'rapid'; }
+
+// Skill Builder / Speed Round: explain what happens before results open (results are final, answers lock)
+function requestReview(gkey) {
+  const go = () => { if (gkey) showGroupReport(gkey); else showReview(true); };
+  if (!lockedMode() || state.screen !== 'test') { go(); return; }
+  const scope = gkey ? state.sessionOrder.filter(i => QUESTIONS[i].skill === gkey) : state.sessionOrder;
+  const unanswered = scope.filter(i => { const a = state.answers[QUESTIONS[i].id]; return a === undefined || a === null || String(a).trim() === ''; }).length;
+  const warn = unanswered > 0
+    ? `<div class="rv-warn"><strong>${unanswered} question${unanswered === 1 ? ' is' : 's are'} still unanswered.</strong> Unanswered questions count as incorrect. Press <em>Keep Working</em> to go back and answer ${unanswered === 1 ? 'it' : 'them'}.</div>`
+    : `<div class="rv-ok">All questions are answered.</div>`;
+  const o = document.getElementById('briefOverlay');
+  o.innerHTML = `<div class="brief-card" role="dialog" aria-modal="true" style="max-width:480px;">
+    <div class="brief-kicker">Before you see your results</div>
+    <div class="brief-title">Finish &amp; Review</div>
+    ${warn}
+    <ul class="rv-list">
+      <li><b>Results are final.</b> Once you press <em>Show Results</em> your answers are locked &mdash; you cannot return to the questions or change anything.</li>
+      <li>You will see <b>only the questions you got wrong</b> (or left blank), each with the correct answer and the full explanation.</li>
+      <li>Want another attempt? Use <b>Reset</b> on the results page to clear everything and start over, or <b>Back to Menu</b> to leave.</li>
+      <li>Not ready yet? Press <em>Keep Working</em> &mdash; nothing is lost.</li>
+    </ul>
+    <div class="brief-actions">
+      <button class="btn-ghost" onclick="closeBrief()">Keep Working</button>
+      <button class="btn-primary" onclick="confirmBrief()">Show Results &rarr;</button>
+    </div>
+  </div>`;
+  window.__briefStart = go;
+  o.classList.add('show');
+}
+
 function showGroupReport(gkey) {
+  if (lockedMode()) state.locked = true; // Skill Builder / Speed Round: results are final
   state.reportGroup = gkey;
   if (state.timerId) clearInterval(state.timerId);
   state.screen = 'review';
@@ -496,6 +535,7 @@ function showGroupReport(gkey) {
 }
 
 function closeGroupReport() {
+  state.locked = false;
   state.reportGroup = (state.mode === 'skill') ? state.selectedSkill : null;
   state.screen = 'test';
   document.getElementById('toolbar').style.display = 'flex';
@@ -528,6 +568,7 @@ function resetAll() {
   state.flagged = {};
   state.checked = {};
   state.revealed = {};
+  state.locked = false;
   state.current = state.sessionOrder[0];
   state.reportGroup = (state.mode === 'skill') ? state.selectedSkill : null;
   state.timeLeft = state.mode === 'chapter' ? 180*60 : (state.mode === 'skill' ? (state.selectedDiffs.length<=1?35:75)*60 : 0);
@@ -656,7 +697,7 @@ function renderPalette() {
     });
     if (showReviewTab) {
       html += `<div class="diff-subgroup review-tab">
-        <button class="diff-subgroup-header" onclick="showGroupReport('${skey}')">
+        <button class="diff-subgroup-header" onclick="requestReview('${skey}')">
           <span class="dsh-chevron">&#128196;</span>
           <span class="dsh-title">Review</span>
         </button>
@@ -859,7 +900,7 @@ function renderReview() {
 
   const groupLabel = reportMode ? SKILL_LABEL[state.reportGroup] : null;
   const titleText = reportMode ? `Section Report &mdash; ${groupLabel}` : 'Results';
-  const backBtn = `<button class="btn-ghost" onclick="closeGroupReport()">&larr; Back to Test</button>
+  const backBtn = `${state.locked ? '' : '<button class="btn-ghost" onclick="closeGroupReport()">&larr; Back to Test</button>'}
     <button class="btn-ghost" onclick="backToIntro()">&larr; Back to Menu</button>`;
   const resetBtn = reportMode
     ? `<button class="btn-ghost" style="color:var(--red);" onclick="resetSkill('${state.reportGroup}')">Reset Skill</button>`
@@ -868,6 +909,7 @@ function renderReview() {
   return `<div class="screen-center" style="max-width:760px;">
     <h1 class="serif" style="color:var(--crimson);">${titleText}</h1>
     <div class="scorebig">${correctCount} / ${reviewQuestions.length}</div>
+    ${state.locked ? `<div style="max-width:520px;margin:0 auto 14px;font-size:13px;color:#555;">Results are final and your answers are locked. Use <strong>Reset</strong> to start over, or <strong>Back to Menu</strong> to leave.</div>` : ''}
     ${skillRows ? `<div style="max-width:420px;margin:18px auto;text-align:left;">${skillRows}</div>` : ''}
     ${flaggedCount > 0 ? `<div style="max-width:420px;margin:0 auto 18px;text-align:left;font-size:13px;color:var(--gold);">\ud83d\udd16 ${flaggedCount} question${flaggedCount===1?'':'s'} marked for review \u2014 see gold-highlighted questions below</div>` : ''}
     <div class="noprint" style="margin:20px 0;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
