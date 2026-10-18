@@ -704,7 +704,9 @@ function renderQuestion() {
          <div class="rt-box rt-fastest"><span class="rt-label">Fastest Way to Solve</span><ol>${q.fastest.map(s=>`<li>${s}</li>`).join('')}</ol></div>`;
   }
   const pos = sessionPos(state.current);
-  const revealBtn = state.mode === 'rapid' ? `<button class="btn-ghost" onclick="revealAnswer()">Show Answer</button>` : '';
+  // Skill Builder & Speed Round: no Check/Show Answer — answers are revealed only at the end (wrong ones only)
+  const noCheck = state.mode === 'skill' || state.mode === 'rapid';
+  if (noCheck) feedbackHtml = '';
   return `
   <div id="main">
     <div class="card">
@@ -716,7 +718,7 @@ function renderQuestion() {
       <div class="stem">${q.stem}</div>
       ${figureHtml}
       ${choicesHtml}
-      <div class="check-row"><button class="btn-ghost" onclick="checkAnswer()">Check Answer</button>${revealBtn}</div>
+      ${noCheck ? '' : `<div class="check-row"><button class="btn-ghost" onclick="checkAnswer()">Check Answer</button></div>`}
       ${feedbackHtml}
       <div class="navbtns">
         <div><button class="btn-ghost" onclick="prevQ()" ${pos===0?'disabled':''}>Back</button></div>
@@ -810,7 +812,14 @@ function renderReview() {
 
   let blocks = '';
   const flaggedCount = reviewQuestions.filter(q => state.flagged[q.id]).length;
-  reviewQuestions.forEach(q => {
+  const onlyWrong = state.mode === 'skill' || state.mode === 'rapid';
+  const shownQuestions = onlyWrong ? reviewQuestions.filter(q => !isCorrect(q)) : reviewQuestions;
+  if (onlyWrong) {
+    blocks += shownQuestions.length === 0
+      ? `<div class="review-block" style="text-align:center;"><strong>Perfect score \u2014 no incorrect answers!</strong></div>`
+      : `<div style="text-align:center;margin:0 0 14px;font-size:14px;color:var(--red);font-weight:700;">Incorrect answers (${shownQuestions.length}) \u2014 correct answers shown below</div>`;
+  }
+  shownQuestions.forEach(q => {
     const correct = isCorrect(q);
     const given = state.answers[q.id];
     const isFlagged = !!state.flagged[q.id];
