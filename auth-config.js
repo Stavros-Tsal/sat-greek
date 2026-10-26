@@ -1,3 +1,3 @@
 // Auto-updated weekly by GitHub Actions — do not edit by hand.
 // Holds the SHA-256 hash of the current shared student password.
-const PASSWORD_HASH = "78fe94466437b7cb4864334444f74a2e0f19e92be26eaa164ad461069224271c";
+const PASSWORD_HASH = "a627c84cf078e84617dd52315b80155570e7d0e68dea9b711db117d372b9238e";
