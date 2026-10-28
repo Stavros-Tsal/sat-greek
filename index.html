@@ -1318,9 +1318,30 @@ async function signInWithGoogle() {
     setAuthError('Αποτυχία σύνδεσης (' + (e.code || 'σφάλμα') + ').');
   }
 }
-function signOutUser() {
+// Server-side access layer (Cloudflare Pages Functions). It does NOT replace the Google sign-in or the
+// "students" check above: it only asks the server to repeat the same check and, if it passes, to set a
+// short-lived cookie that unlocks the files. Returns 'ok' | 'denied' | 'unavailable'
+// ('unavailable' = there is no such server layer, e.g. GitHub Pages -> behave exactly as before).
+async function establishSession(user) {
+  try {
+    const idToken = await user.getIdToken();
+    const r = await fetch('api/session', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: idToken })
+    });
+    if (r.ok) return 'ok';
+    if (r.status === 403) return 'denied';
+    return 'unavailable';
+  } catch (e) { return 'unavailable'; }
+}
+async function signOutUser() {
   localStorage.removeItem('clc_guest');
-  if (fbAuth) fbAuth.signOut();
+  try { if (fbAuth) await fbAuth.signOut(); } catch (e) {}
+  try {
+    const r = await fetch('api/logout', { method: 'POST', credentials: 'same-origin' });
+    if (r.ok) location.reload();   // back to the public shell: the server no longer sends the full app
+  } catch (e) {}
 }
 
 function initAuth() {
@@ -1333,6 +1354,15 @@ function initAuth() {
       let ok = false;
       try { ok = await isAllowed(user); }
       catch (e) { console.warn(e); setAuthError('Δεν ήταν δυνατός ο έλεγχος πρόσβασης. Δοκίμασε ξανά.'); }
+      if (ok) {
+        const sess = await establishSession(user);
+        if (sess === 'denied') ok = false;
+        else if (window.__PUBLIC_SHELL) {
+          if (sess === 'ok') { location.reload(); return; }   // the server now serves the full app
+          showGate('Προσωρινό πρόβλημα πρόσβασης. Δοκίμασε ξανά σε λίγο.');
+          return;
+        }
+      }
       if (ok) {
         localStorage.removeItem('clc_guest');
         setMode('member');
