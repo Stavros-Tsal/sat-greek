@@ -107,4 +107,4 @@ renderTimingOptions();
 function updateTimerDisplay(){const mnt=Math.floor(timeLeft/60),s=timeLeft%60;const str=String(mnt).padStart(2,'0')+':'+String(s).padStart(2,'0');const pill=document.getElementById('timer-pill');pill.textContent=str;pill.classList.toggle('warn',timeLeft<=60)}
 function startTimer(){timeLeft=chosenMinutes*60;updateTimerDisplay();timerInterval=setInterval(()=>{timeLeft--;if(timeLeft<=0){clearInterval(timerInterval);timeLeft=0;updateTimerDisplay();if(!checked)doCheck();return}updateTimerDisplay()},1000)}
 document.getElementById('start-btn').onclick=()=>{document.getElementById('start-overlay').style.display='none';document.getElementById('m').style.display='block';document.getElementById('bar').style.display='flex';document.getElementById('hbar').style.display='flex';startTimer()};
-</script><script src="results.js"></script></body></html>
+</script><script src="results.js"></script><script src="module-export.js"></script></body></html>
