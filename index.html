@@ -3041,6 +3041,13 @@ window.addEventListener('popstate', function(e) {
 });
 
 window.addEventListener('DOMContentLoaded', function() {
+  // Guests start each browser session at the SAT / Γενικό Λύκειο chooser, even from old #screen-welcome/#screen-subject links
+  try {
+    if (document.body.classList.contains('guest') && !sessionStorage.getItem('gh_seen') && /^(#screen-(welcome|subject))?$/.test(window.location.hash)) {
+      history.replaceState(null, '', '#screen-guest-home');
+    }
+    sessionStorage.setItem('gh_seen', '1');
+  } catch (e) {}
   const hashId = window.location.hash ? window.location.hash.substring(1) : '';
   const hashEl = hashId ? document.getElementById(hashId) : null;
   if (hashEl && hashEl.classList.contains('screen') && hashId !== 'screen-quiz' && hashId !== 'screen-test-quiz') {
