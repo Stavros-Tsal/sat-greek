@@ -856,6 +856,10 @@
   }
 
   /* ── SUBJECT SCREEN ── */
+  #screen-guest-home, #screen-gl, #screen-gl-b {
+    min-height: 100vh; align-items: center; justify-content: center;
+    padding: 40px 24px; text-align: center;
+  }
   #screen-subject {
     min-height: 100vh;
     flex-direction: column;
@@ -1160,7 +1164,7 @@
   /* ── MATH QUOTES BACKGROUND ── */
   #math-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; user-select: none; -webkit-user-select: none; }
   body:has(#screen-welcome.active, #screen-subject.active, #screen-mode.active, #screen-drills-intro.active, #screen-tests-intro.active, #screen-fp-intro.active) #math-bg { background: linear-gradient(160deg, #fff 60%, #f8f0f0 100%); }
-  #screen-welcome, #screen-subject, #screen-mode { background: transparent; }
+  #screen-welcome, #screen-subject, #screen-mode, #screen-guest-home, #screen-gl, #screen-gl-b { background: transparent; }
   #math-bg .mq {
     position: absolute; width: 46vw; max-width: 340px;
     font-family: 'Playfair Display', 'Crimson Text', Georgia, serif; font-style: italic;
@@ -1273,7 +1277,7 @@ function enterAsGuest() {
   localStorage.setItem('clc_guest', '1');
   setMode('guest');
   hideAuthGate();
-  goScreen('screen-welcome');
+  goScreen('screen-guest-home');
 }
 const CAL_IDS = {
   '1': 'YWExYTMxODQzZGNjNzg4YTc0NTBlMmE1OGFhMGY2Y2JjMzNkNTIzNjViYjA1ZWEyMGU4ODQ1MjRmYTYwNWRlOUBncm91cC5jYWxlbmRhci5nb29nbGUuY29t',
@@ -1353,6 +1357,51 @@ function initAuth() {
 initAuth();
 </script>
 
+<!-- ══ GUEST HOME: SAT / ΓΕΝΙΚΟ ΛΥΚΕΙΟ ══ -->
+<div id="screen-guest-home" class="screen">
+  <img src="assets/greek-flag.png" alt="Greek flag" style="width:100px;height:auto;border-radius:5px;box-shadow:0 4px 16px rgba(13,94,175,0.15);margin:0 auto 14px;">
+  <h2 class="subject-title">Καλώς ήρθες!</h2>
+  <p class="subject-sub">Επίλεξε ενότητα</p>
+  <div class="subject-cards">
+    <div class="subject-card" onclick="goScreen('screen-welcome')" role="button" tabindex="0">
+      <div class="icon">🎯</div>
+      <div class="label">SAT</div>
+      <div class="desc">Digital SAT · Full Practice Test, College Board και δείγματα ασκήσεων</div>
+    </div>
+    <div class="subject-card" onclick="goScreen('screen-gl')" role="button" tabindex="0">
+      <div class="icon">🏫</div>
+      <div class="label">Γενικό Λύκειο</div>
+      <div class="desc">Διαδραστική εξάσκηση για τις τάξεις του Γενικού Λυκείου</div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-gl" class="screen">
+  <h2 class="subject-title">Γενικό Λύκειο</h2>
+  <p class="subject-sub">Επίλεξε τάξη</p>
+  <div class="subject-cards">
+    <div class="subject-card" onclick="goScreen('screen-gl-b')" role="button" tabindex="0">
+      <div class="icon">📘</div>
+      <div class="label">Β΄ Λυκείου</div>
+      <div class="desc">Άλγεβρα · Συναρτήσεις</div>
+    </div>
+  </div>
+  <button class="nav-back-btn" onclick="goScreen('screen-guest-home')">← Back</button>
+</div>
+
+<div id="screen-gl-b" class="screen">
+  <h2 class="subject-title">Β΄ Λυκείου</h2>
+  <p class="subject-sub">Επίλεξε υλικό</p>
+  <div class="subject-cards">
+    <div class="subject-card" onclick="location.href='function-quest.html'" role="link" tabindex="0">
+      <div class="icon">📈</div>
+      <div class="label">Function Quest</div>
+      <div class="desc">Άλγεβρα Β΄ Λυκείου · 335 ερωτήσεις στις συναρτήσεις</div>
+    </div>
+  </div>
+  <button class="nav-back-btn" onclick="goScreen('screen-gl')">← Back</button>
+</div>
+
 <!-- ══ SCREEN 1: WELCOME ══ -->
 <div id="screen-welcome" class="screen active">
   <img src="assets/greek-flag.png" alt="Greek flag" style="width:120px;height:auto;border-radius:5px;box-shadow:0 4px 16px rgba(13,94,175,0.15);margin-bottom:14px;">
@@ -1361,6 +1410,7 @@ initAuth();
   <h1 class="welcome-title">Welcome, students!</h1>
   <p class="welcome-sub">Ready to do some SAT practice?<br>Let's get started.</p>
   <button class="welcome-next" onclick="goScreen('screen-subject')">Get Started →</button>
+  <button class="nav-back-btn guest-only" onclick="goScreen('screen-guest-home')">← Back</button>
 </div>
 
 <!-- ══ SCREEN 2: SUBJECT ══ -->
@@ -2944,7 +2994,7 @@ document.addEventListener('keydown', e => {
 // ── SCREEN NAVIGATION ──
 let __isHistoryNav = false;
 
-const GUEST_SCREENS = /^screen-(welcome|subject|full-practice-list|fp-intro|college-board|cb-)/;
+const GUEST_SCREENS = /^screen-(guest-home|gl|welcome|subject|full-practice-list|fp-intro|college-board|cb-)/;
 function goScreen(id, subject) {
   if (document.body.classList.contains('guest') && !GUEST_SCREENS.test(id)) id = 'screen-subject';
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -3000,7 +3050,8 @@ window.addEventListener('DOMContentLoaded', function() {
     history.replaceState({ screenId: hashId, subject: null }, '', '#' + hashId);
   } else {
     const activeScreen = document.querySelector('.screen.active');
-    const initialId = activeScreen ? activeScreen.id : 'screen-welcome';
+    let initialId = activeScreen ? activeScreen.id : 'screen-welcome';
+    if (document.body.classList.contains('guest') && initialId === 'screen-welcome') { __isHistoryNav = true; goScreen('screen-guest-home'); __isHistoryNav = false; initialId = 'screen-guest-home'; }
     history.replaceState({ screenId: initialId, subject: null }, '', '#' + initialId);
   }
 });
