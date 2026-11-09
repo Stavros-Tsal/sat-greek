@@ -1171,7 +1171,10 @@
   }
   .seen-btn:hover { border-color: var(--correct); color: var(--correct); background: var(--correct-bg); }
   .seen-btn.seen-on { background: var(--correct-bg); border-color: #4caf7d; color: var(--correct); font-weight: 600; }
-  .qdot.qdot-seen:not(.qdot-current) { box-shadow: inset 0 -3px 0 #4caf7d; }
+  .qdot.qdot-seen::after {
+    content: '✓'; position: absolute; top: -5px; right: -5px; width: 14px; height: 14px; border-radius: 50%;
+    background: #4caf7d; color: #fff; font-size: 9px; font-weight: 700; line-height: 14px; text-align: center;
+  }
 
   #screen-drills-mode {
     min-height: 100vh; align-items: center; justify-content: center;
@@ -1223,8 +1226,10 @@
   }
   .pick-num:hover { border-color: var(--crimson); color: var(--crimson); }
   .pick-num.on { background: var(--crimson); border-color: var(--crimson); color: #fff; font-weight: 700; }
-  .pick-num.seen:not(.on) { color: #9a9a9a; box-shadow: inset 0 -3px 0 #4caf7d; }
-  .pick-num.seen.on { box-shadow: inset 0 -3px 0 #8be0b0; }
+  .pick-num.seen::after {
+    content: '✓'; position: absolute; top: -4px; right: -4px; width: 13px; height: 13px; border-radius: 50%;
+    background: #4caf7d; color: #fff; font-size: 8px; font-weight: 700; line-height: 13px;
+  }
   .pick-foot { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-top: 14px; }
   .pick-summary { font-size: 14px; color: var(--muted); font-weight: 500; }
   .pick-summary b { color: var(--crimson); }
@@ -2082,22 +2087,21 @@ initAuth();
 
 <!-- ══ DRILLS: EXERCISE PICKER ══ -->
 <div id="screen-drills-pick" class="screen">
-  <button class="nav-back-btn" onclick="goScreen('screen-drills-mode')">← Back</button>
-  <h2 class="subject-title">Choose your exercises</h2>
-  <p class="subject-sub">Pick a chapter, tick the exercise numbers you want, repeat for the other chapters, then press Start.</p>
+  <button class="nav-back-btn" onclick="pickBack()">← Back</button>
+  <h2 class="subject-title" id="pick-title">Select the exercises</h2>
+  <p class="subject-sub" id="pick-sub">Choose a chapter, then tick the exercises you want to do.</p>
   <div class="pick-wrap">
-    <div class="pick-tabs" id="pick-tabs"></div>
-    <div class="pick-tools">
-      <label for="pick-from">From</label><input type="number" id="pick-from" min="1" inputmode="numeric">
-      <label for="pick-to">to</label><input type="number" id="pick-to" min="1" inputmode="numeric">
-      <button class="pick-btn" onclick="pickRange(true)">Add range</button>
-      <button class="pick-btn ghost" onclick="pickRange(false)">Remove range</button>
-      <button class="pick-btn" onclick="pickAll(true)">Select all</button>
-      <button class="pick-btn" onclick="pickUnseen()">Select unseen</button>
-      <button class="pick-btn ghost" onclick="pickAll(false)">Clear chapter</button>
+    <div id="pick-chapters" class="mode-cards"></div>
+    <div id="pick-gridview" style="display:none">
+      <div class="pick-tools">
+        <button class="pick-btn ghost" onclick="showPickChapters()">← All chapters</button>
+        <button class="pick-btn" onclick="pickAll(true)">Select all</button>
+        <button class="pick-btn" onclick="pickUnseen()">Select unseen</button>
+        <button class="pick-btn ghost" onclick="pickAll(false)">Clear chapter</button>
+      </div>
+      <div class="pick-grid" id="pick-grid" onclick="pickGridClick(event)"></div>
+      <div class="pick-legend">✓ = you marked it as seen before.</div>
     </div>
-    <div class="pick-grid" id="pick-grid" onclick="pickGridClick(event)"></div>
-    <div class="pick-legend">Green underline = you marked it as seen before.</div>
     <div class="pick-foot">
       <span class="pick-summary" id="pick-summary"></span>
       <button class="pick-start" id="pick-start" onclick="startPicked()">Start →</button>
@@ -3195,7 +3199,7 @@ function goScreen(id, subject) {
   document.getElementById(id).classList.add('active');
   document.body.classList.toggle('no-back', !document.getElementById(id).querySelector('.nav-back-btn'));
   try {
-    if (id === 'screen-drills-pick') renderPicker();
+    if (id === 'screen-drills-pick') { pickView = 'chapters'; renderPicker(); }
     if (id === 'screen-quiz') resumeClockIfNeeded();
   } catch (e) {}
   if (subject) {
@@ -3642,6 +3646,7 @@ const SEEN_KEY = 'clc_drill_seen_v1';
 const SESSION = { active: false, picked: false, finished: false, sel: [null, null, null, null], startMs: 0, elapsedMs: 0, timerId: null };
 const PICK = [new Set(), new Set(), new Set(), new Set()];
 let pickTab = 0;
+let pickView = 'chapters';
 const FULL_LISTS = [null, null, null, null];
 
 // list of real question indices shown for a chapter in the current session
@@ -3652,8 +3657,13 @@ function selList(t) {
 }
 
 // ── "Seen" flag (persists in this browser, like the rest of the progress) ──
+function seenKey() {
+  let email = '';
+  try { if (typeof fbAuth !== 'undefined' && fbAuth && fbAuth.currentUser && fbAuth.currentUser.email) email = fbAuth.currentUser.email.toLowerCase(); } catch (e) {}
+  return SEEN_KEY + (email ? ':' + email : '');
+}
 function loadSeen() {
-  try { return JSON.parse(localStorage.getItem(SEEN_KEY)) || {}; } catch (e) { return {}; }
+  try { return JSON.parse(localStorage.getItem(seenKey())) || {}; } catch (e) { return {}; }
 }
 function isSeen(t, q) {
   const m = loadSeen();
@@ -3663,7 +3673,7 @@ function toggleSeen(t, q) {
   const m = loadSeen();
   if (!m[t]) m[t] = {};
   if (m[t][q]) delete m[t][q]; else m[t][q] = 1;
-  try { localStorage.setItem(SEEN_KEY, JSON.stringify(m)); } catch (e) {}
+  try { localStorage.setItem(seenKey(), JSON.stringify(m)); } catch (e) {}
   const btn = document.getElementById(`seen-${t}-${q}`);
   if (btn) {
     const on = !!m[t][q];
@@ -3749,25 +3759,42 @@ function goNextChapter(t) {
 
 // ── Exercise picker ──
 function renderPicker() {
-  const tabsEl = document.getElementById('pick-tabs');
-  if (!tabsEl) return;
-  tabsEl.innerHTML = DRILL_NAMES.map((n, i) =>
-    `<button class="pick-tab ${i === pickTab ? 'active' : ''}" onclick="setPickTab(${i})">${DRILL_ICONS[i]} ${n} <span class="pick-count" id="pick-count-${i}">${PICK[i].size}</span></button>`
-  ).join('');
-  const seenMap = loadSeen()[pickTab] || {};
-  const n = QUESTIONS[pickTab].length;
-  let g = '';
-  for (let i = 0; i < n; i++) {
-    g += `<button class="pick-num${PICK[pickTab].has(i) ? ' on' : ''}${seenMap[i] ? ' seen' : ''}" data-i="${i}">${i + 1}</button>`;
+  const chEl = document.getElementById('pick-chapters');
+  if (!chEl) return;
+  const grid = pickView === 'grid';
+  chEl.style.display = grid ? 'none' : '';
+  document.getElementById('pick-gridview').style.display = grid ? '' : 'none';
+  document.getElementById('pick-title').textContent = grid ? `${DRILL_ICONS[pickTab]} ${DRILL_NAMES[pickTab]}` : 'Select the exercises';
+  document.getElementById('pick-sub').textContent = grid
+    ? 'Tick the exercises you want to do in this chapter.'
+    : 'Choose a chapter, then tick the exercises you want to do.';
+  if (!grid) {
+    chEl.innerHTML = DRILL_NAMES.map((n, i) =>
+      `<div class="mode-card" onclick="openPickChapter(${i})"><div class="icon">${DRILL_ICONS[i]}</div><div class="label">${n}</div><div class="desc"><b id="pick-count-${i}">${PICK[i].size}</b> of ${QUESTIONS[i].length} selected</div></div>`
+    ).join('');
+  } else {
+    const seenMap = loadSeen()[pickTab] || {};
+    const n = QUESTIONS[pickTab].length;
+    let g = '';
+    for (let i = 0; i < n; i++) {
+      g += `<button class="pick-num${PICK[pickTab].has(i) ? ' on' : ''}${seenMap[i] ? ' seen' : ''}" data-i="${i}">${i + 1}</button>`;
+    }
+    document.getElementById('pick-grid').innerHTML = g;
   }
-  document.getElementById('pick-grid').innerHTML = g;
-  const to = document.getElementById('pick-to');
-  if (to) to.max = n;
   updatePickSummary();
 }
-function setPickTab(i) {
+function openPickChapter(i) {
   pickTab = i;
+  pickView = 'grid';
   renderPicker();
+  window.scrollTo(0, 0);
+}
+function showPickChapters() {
+  pickView = 'chapters';
+  renderPicker();
+}
+function pickBack() {
+  if (pickView === 'grid') showPickChapters(); else goScreen('screen-drills-mode');
 }
 function updatePickSummary() {
   let total = 0, chapters = 0;
@@ -3791,18 +3818,6 @@ function pickGridClick(ev) {
   if (PICK[pickTab].has(i)) PICK[pickTab].delete(i); else PICK[pickTab].add(i);
   b.classList.toggle('on', PICK[pickTab].has(i));
   updatePickSummary();
-}
-function pickRange(add) {
-  const n = QUESTIONS[pickTab].length;
-  let a = parseInt(document.getElementById('pick-from').value, 10);
-  let b = parseInt(document.getElementById('pick-to').value, 10);
-  if (isNaN(a) && isNaN(b)) return;
-  if (isNaN(a)) a = b;
-  if (isNaN(b)) b = a;
-  if (a > b) { const x = a; a = b; b = x; }
-  a = Math.max(1, a); b = Math.min(n, b);
-  for (let k = a; k <= b; k++) { if (add) PICK[pickTab].add(k - 1); else PICK[pickTab].delete(k - 1); }
-  renderPicker();
 }
 function pickAll(add) {
   PICK[pickTab].clear();
