@@ -1163,6 +1163,11 @@
 
 
   /* ── DRILLS: SEEN BUTTON, MODE + PICKER SCREENS, SESSION HEADER, RESULTS (Nov 2026) ── */
+  .retry-btn {
+    margin-left: 10px; padding: 4px 12px; border-radius: 8px; border: 1.5px solid var(--crimson);
+    background: #fff; color: var(--crimson); font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .retry-btn:hover { background: var(--crimson); color: #fff; }
   .q-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .seen-btn {
     padding: 6px 12px; background: var(--bg); border: 1.5px solid var(--border);
@@ -3261,6 +3266,7 @@ const state = [0,1,2,3].map(() => ({
   score: 0,
   answered: {},
   given: {},
+  retry: {},
   bookmarks: new Set(),
   done: false
 }));
@@ -3330,20 +3336,24 @@ function checkOpen(tabIdx, qIdx) {
 
   input.disabled = true;
   btn.disabled = true;
-  if (state[tabIdx].given[qIdx] === undefined) state[tabIdx].given[qIdx] = rawAns;
+  state[tabIdx].given[qIdx] = rawAns;
 
   const isCorrect = answersMatch(rawAns, rawCorrect);
   input.classList.add(isCorrect ? 'correct' : 'wrong');
   fb.className = 'feedback ' + (isCorrect ? 'correct' : 'wrong');
+  fb.style.display = 'block';
   fb.textContent = isCorrect
     ? '✓ Correct!'
     : `✗ Incorrect. Correct answer: ${ANSWERS[tabIdx][qIdx+1]}`;
 
-  if (!state[tabIdx].answered[qIdx]) {
+  // Once an exercise has been answered correctly it stays correct; a wrong answer can be retried.
+  if (state[tabIdx].answered[qIdx] !== true) {
     state[tabIdx].answered[qIdx] = isCorrect;
     if (isCorrect) state[tabIdx].score++;
     if (window.clcRecordDrillAnswer) clcRecordDrillAnswer(tabIdx, qIdx, isCorrect);
   }
+  state[tabIdx].retry[qIdx] = false;
+  if (!isCorrect) showRetry(tabIdx, qIdx);
 
   const expElO = document.getElementById(`exp-${tabIdx}-${qIdx}`);
   const qO = QUESTIONS[tabIdx][qIdx];
@@ -3364,7 +3374,7 @@ function chooseMCQ(tabIdx, qIdx, chosenIdx) {
   const correct = ANSWERS[tabIdx][qIdx+1];
   const isCorrect = chosen === correct;
   const correctIdx = letters.indexOf(correct);
-  if (state[tabIdx].given[qIdx] === undefined) state[tabIdx].given[qIdx] = chosen;
+  state[tabIdx].given[qIdx] = chosen;
 
   // Disable all buttons
   for (let i=0;i<4;i++) {
@@ -3377,13 +3387,17 @@ function chooseMCQ(tabIdx, qIdx, chosenIdx) {
 
   const fb = document.getElementById(`fb-${tabIdx}-${qIdx}`);
   fb.className = 'feedback ' + (isCorrect ? 'correct' : 'wrong');
+  fb.style.display = 'block';
   fb.textContent = isCorrect ? '✓ Correct!' : `✗ Incorrect. Correct answer: ${correct}`;
 
-  if (!state[tabIdx].answered[qIdx]) {
+  // Once an exercise has been answered correctly it stays correct; a wrong answer can be retried.
+  if (state[tabIdx].answered[qIdx] !== true) {
     state[tabIdx].answered[qIdx] = isCorrect;
     if (isCorrect) state[tabIdx].score++;
     if (window.clcRecordDrillAnswer) clcRecordDrillAnswer(tabIdx, qIdx, isCorrect);
   }
+  state[tabIdx].retry[qIdx] = false;
+  if (!isCorrect) showRetry(tabIdx, qIdx);
 
   const expEl0 = document.getElementById(`exp-${tabIdx}-${qIdx}`);
   const q0 = QUESTIONS[tabIdx][qIdx];
@@ -3483,7 +3497,7 @@ function renderQuestion(tabIdx) {
 
   if (q.img) html += `<img class="q-image" src="${q.img}" alt="figure">`;
 
-  const alreadyAnswered = s.answered[qIdx] !== undefined;
+  const alreadyAnswered = s.answered[qIdx] !== undefined && !s.retry[qIdx];
 
   if (q.open) {
     const val = alreadyAnswered ? ANSWERS[tabIdx][qIdx+1] : '';
@@ -3532,6 +3546,7 @@ function renderQuestion(tabIdx) {
   html += `</div><div id="nav-${tabIdx}"></div>`;
 
   document.getElementById(`quiz-${tabIdx}`).innerHTML = html;
+  if (s.answered[qIdx] === false && !s.retry[qIdx]) showRetry(tabIdx, qIdx);
   MathJax.typesetPromise([document.getElementById(`quiz-${tabIdx}`)]);
   renderNav(tabIdx);
   renderQuestionDots(tabIdx);
@@ -3633,6 +3648,7 @@ function restartQuiz(tabIdx) {
   state[tabIdx].score = 0;
   state[tabIdx].answered = {};
   state[tabIdx].given = {};
+  state[tabIdx].retry = {};
   state[tabIdx].done = false;
   renderQuestion(tabIdx);
 }
@@ -3681,6 +3697,19 @@ function toggleSeen(t, q) {
     btn.textContent = on ? '✓ Seen' : '☐ Mark as seen';
   }
   renderQuestionDots(t);
+}
+
+// ── Retry a wrong exercise ──
+function showRetry(t, q) {
+  const fb = document.getElementById(`fb-${t}-${q}`);
+  if (fb && !fb.querySelector('.retry-btn')) {
+    fb.insertAdjacentHTML('beforeend', ` <button class="retry-btn" onclick="retryQuestion(${t},${q})">↻ Try again</button>`);
+  }
+}
+function retryQuestion(t, q) {
+  if (state[t].answered[q] === true) return;
+  state[t].retry[q] = true;
+  renderQuestion(t);
 }
 
 // ── Count-up clock (no countdown) ──
@@ -3736,6 +3765,7 @@ function startDrillSession(picked) {
     state[i].score = 0;
     state[i].answered = {};
     state[i].given = {};
+    state[i].retry = {};
     state[i].bookmarks = new Set();
     state[i].done = false;
     if (tabBtns[i]) tabBtns[i].style.display = (picked && list.length === 0) ? 'none' : '';
