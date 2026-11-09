@@ -196,12 +196,13 @@
         h += '<div class="solbox"><b>Solution</b>' + (sh || '<div class="st">Solution not available.</div>') + '</div></div>';
       });
     }
-    h += '<div class="foot">CLC SAT · Greek SAT platform — generated ' + esc(new Date().toLocaleString('en-GB')) + '</div>';
+    h += '<div class="foot">Greek SAT platform — generated ' + esc(new Date().toLocaleString('en-GB')) + '</div>';
     return h;
   }
 
   function doExport() {
     expBtn.disabled = true;
+    var prevTitle = document.title;
     loadSolutions().then(function () {
       var old = document.getElementById('clc-report');
       if (old) old.remove();
@@ -213,12 +214,15 @@
     }).then(function (box) {
       var done = function () {
         document.body.classList.remove('clc-printing');
+        document.title = prevTitle;
         if (box && box.parentNode) box.parentNode.removeChild(box);
         expBtn.disabled = false;
         window.removeEventListener('afterprint', done);
       };
       window.addEventListener('afterprint', done);
       document.body.classList.add('clc-printing');
+      // the PDF file name comes from the page title
+      document.title = 'Greek SAT — ' + (((document.querySelector('header h1') || {}).textContent || '').trim() || page || prevTitle) + ' — Results report';
       setTimeout(function () { window.print(); }, 50);
     }).catch(function () { expBtn.disabled = false; });
   }

@@ -4012,7 +4012,7 @@ function exportDrillResults() {
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<title>Drills Results — ${studentName}</title>
+<title>Greek SAT — Drills Results — ${studentName}</title>
 <script>
   MathJax = { tex: { inlineMath: [['$','$']] }, svg: { fontCache: 'global' } };
 <\/script>
@@ -4036,7 +4036,7 @@ function exportDrillResults() {
   @media print { body { padding: 12px; } }
 </style>
 </head><body>
-  <h1>CLC SAT Drills — Results</h1>
+  <h1>Greek SAT Drills — Results</h1>
   <div class="meta">Student: <strong>${studentName}</strong> &nbsp;|&nbsp; ${new Date().toLocaleDateString()} &nbsp;|&nbsp; Time spent: ${fmtClock(r.ms)}</div>
   <div class="score-box"><span class="big">${r.correct}</span> / ${r.total} correct &nbsp;(${pct}% of answered${r.unanswered ? `, ${r.unanswered} unanswered` : ''})</div>
   <h2>By chapter</h2>
@@ -4666,7 +4666,7 @@ function generateResultsPDF(studentName) {
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<title>CLC SAT Results — ${studentName}</title>
+<title>Greek SAT — Results — ${studentName}</title>
 <script>
   MathJax = { tex: { inlineMath: [['$','$']] }, svg: { fontCache: 'global' } };
 <\/script>
@@ -4688,7 +4688,7 @@ function generateResultsPDF(studentName) {
   @media print { body { padding: 12px; } }
 </style>
 </head><body>
-  <h1>CLC SAT Practice Test — Results</h1>
+  <h1>Greek SAT Practice Test — Results</h1>
   <div class="meta">Student: <strong>${studentName}</strong> &nbsp;|&nbsp; Test ${testId} &nbsp;|&nbsp; ${new Date().toLocaleDateString()}</div>
   <div class="score-box">
     <span class="big">${totalScore}</span> / ${maxScore}
@@ -4814,7 +4814,7 @@ function generateFullReport(studentName) {
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<title>CLC SAT — Πρόοδος — ${studentName}</title>
+<title>Greek SAT — Πρόοδος — ${studentName}</title>
 <style>
   body { font-family: Georgia, serif; color: #1a1a1a; padding: 32px; max-width: 800px; margin: 0 auto; }
   h1 { color: #0D5EAF; font-size: 22px; margin-bottom: 4px; }
@@ -4833,7 +4833,7 @@ function generateFullReport(studentName) {
 </style>
 </head><body>
   <button class="pr-print-btn" onclick="window.print()">📄 Save as PDF / Print</button>
-  <h1>CLC SAT — Πλήρης Αναφορά Προόδου</h1>
+  <h1>Greek SAT — Πλήρης Αναφορά Προόδου</h1>
   <div class="meta">Μαθητής/τρια: <strong>${studentName}</strong> &nbsp;|&nbsp; ${new Date().toLocaleDateString('el-GR')}</div>
 
   <h2>Drills</h2>
