@@ -939,6 +939,26 @@
     font: 700 10px 'Courier New', monospace; letter-spacing: 2px; color:#ff2bd6;
     border:1px solid #ff2bd6; border-radius:4px; padding:2px 6px; position:relative; z-index:1;
   }
+  .subject-card.hellas {
+    position: relative; overflow: hidden;
+    background: linear-gradient(180deg, #f6ecd6 0%, #ead9b3 100%);
+    border: 2px solid #b8862b;
+    box-shadow: 0 2px 12px rgba(120,80,10,.25), inset 0 0 0 4px #f6ecd6, inset 0 0 0 5px #b8862b;
+    padding-top: 44px; padding-bottom: 44px;
+  }
+  .subject-card.hellas::before, .subject-card.hellas::after {
+    content:''; position:absolute; left:0; right:0; height:12px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 24 12'%3E%3Cpath d='M0 11H1V1H11V8H4V4H8V6H6' fill='none' stroke='%238a5a12' stroke-width='1.4'/%3E%3Cpath d='M12 11H13V1H23V8H16V4H20V6H18' fill='none' stroke='%238a5a12' stroke-width='1.4'/%3E%3C/svg%3E"); background-repeat: repeat-x; opacity:.9; pointer-events:none;
+  }
+  .subject-card.hellas::before { top:10px; }
+  .subject-card.hellas::after { bottom:10px; }
+  .subject-card.hellas:hover {
+    border-color:#8a5a12; transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(120,80,10,.4), inset 0 0 0 4px #f6ecd6, inset 0 0 0 5px #8a5a12;
+  }
+  .subject-card.hellas .icon { filter: drop-shadow(0 2px 2px rgba(120,80,10,.4)); }
+  .subject-card.hellas .label { color:#5c3a08; font-size:18px; }
+  .subject-card.hellas .desc { color:#6e5524; }
   .subject-card.disabled {
     opacity: 0.45; cursor: not-allowed;
     pointer-events: none;
@@ -1538,6 +1558,11 @@ initAuth();
       <span class="tag">HYBRID COURSE</span>
       <div class="label">Γ' Γυμνασίου - SAT Prep</div>
       <div class="desc">Δυνάμεις · Μονώνυμα · Πολυώνυμα · Παραγοντοποίηση</div>
+    </div>
+    <div class="subject-card hellas" onclick="location.href='thales-2012-2026.pdf'" role="link" tabindex="0">
+      <div class="icon">🏛️</div>
+      <div class="label">Θέματα Διαγωνισμών: Θαλής</div>
+      <div class="desc">Διαγωνισμός Θαλής · 2012–2026</div>
     </div>
   </div>
 </div>
