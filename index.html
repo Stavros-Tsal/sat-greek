@@ -856,7 +856,7 @@
   }
 
   /* ── SUBJECT SCREEN ── */
-  #screen-guest-home, #screen-gl, #screen-gl-b {
+  #screen-guest-home, #screen-gl, #screen-gl-a, #screen-gl-a-alg, #screen-gl-b {
     min-height: 100vh; align-items: center; justify-content: center;
     padding: 40px 24px; text-align: center;
   }
@@ -1344,7 +1344,7 @@
   /* ── MATH QUOTES BACKGROUND ── */
   #math-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; user-select: none; -webkit-user-select: none; }
   body:has(#screen-welcome.active, #screen-subject.active, #screen-mode.active, #screen-drills-intro.active, #screen-tests-intro.active, #screen-fp-intro.active, #screen-drills-mode.active, #screen-drills-pick.active) #math-bg { background: linear-gradient(160deg, #fff 60%, #f8f0f0 100%); }
-  #screen-welcome, #screen-subject, #screen-mode, #screen-guest-home, #screen-gl, #screen-gl-b { background: transparent; }
+  #screen-welcome, #screen-subject, #screen-mode, #screen-guest-home, #screen-gl, #screen-gl-a, #screen-gl-a-alg, #screen-gl-b { background: transparent; }
   #math-bg .mq {
     position: absolute; width: 46vw; max-width: 340px;
     font-family: 'Playfair Display', 'Crimson Text', Georgia, serif; font-style: italic;
@@ -1571,6 +1571,11 @@ initAuth();
   <h2 class="subject-title">Γενικό Λύκειο</h2>
   <p class="subject-sub">Επίλεξε τάξη</p>
   <div class="subject-cards">
+    <div class="subject-card" onclick="goScreen('screen-gl-a')" role="button" tabindex="0">
+      <div class="icon">📗</div>
+      <div class="label">Α΄ Λυκείου</div>
+      <div class="desc">Άλγεβρα · Γεωμετρία</div>
+    </div>
     <div class="subject-card" onclick="goScreen('screen-gl-b')" role="button" tabindex="0">
       <div class="icon">📘</div>
       <div class="label">Β΄ Λυκείου</div>
@@ -1578,6 +1583,42 @@ initAuth();
     </div>
   </div>
   <button class="nav-back-btn" onclick="goScreen('screen-guest-home')">← Back</button>
+</div>
+
+<div id="screen-gl-a" class="screen">
+  <h2 class="subject-title">Α΄ Λυκείου</h2>
+  <p class="subject-sub">Επίλεξε μάθημα</p>
+  <div class="subject-cards">
+    <div class="subject-card" onclick="goScreen('screen-gl-a-alg')" role="button" tabindex="0">
+      <div class="icon">➗</div>
+      <div class="label">Άλγεβρα</div>
+      <div class="desc">Σύνολα · Ανισότητες · Απόλυτη τιμή</div>
+    </div>
+    <div class="subject-card disabled">
+      <div class="icon">📐</div>
+      <div class="label">Γεωμετρία</div>
+      <span class="coming-soon">Σύντομα</span>
+    </div>
+  </div>
+  <button class="nav-back-btn" onclick="goScreen('screen-gl')">← Back</button>
+</div>
+
+<div id="screen-gl-a-alg" class="screen">
+  <h2 class="subject-title">Άλγεβρα Α΄ Λυκείου</h2>
+  <p class="subject-sub">Επίλεξε υλικό</p>
+  <div class="subject-cards">
+    <div class="subject-card" onclick="location.href='algebra-a-lykeiou.pdf'" role="link" tabindex="0">
+      <div class="icon">📖</div>
+      <div class="label">Θεωρία</div>
+      <div class="desc">Φυλλάδια θεωρίας και ασκήσεων · 13 ενότητες</div>
+    </div>
+    <div class="subject-card" onclick="location.href='algebra-quest.html'" role="link" tabindex="0">
+      <div class="icon">✅</div>
+      <div class="label">Πολλαπλής Επιλογής</div>
+      <div class="desc">Άλγεβρα Α΄ Λυκείου · Σύνολα, ανισότητες, απόλυτη τιμή</div>
+    </div>
+  </div>
+  <button class="nav-back-btn" onclick="goScreen('screen-gl-a')">← Back</button>
 </div>
 
 <div id="screen-gl-b" class="screen">
