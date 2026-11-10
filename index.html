@@ -909,6 +909,36 @@
     font-size: 12px; color: var(--muted);
     line-height: 1.5; text-align: center;
   }
+  .subject-card.scifi {
+    position: relative; overflow: hidden;
+    background: radial-gradient(120% 120% at 20% 0%, #1b2a6b 0%, #0a0f2c 55%, #050716 100%);
+    border: 2px solid #00e5ff;
+    box-shadow: 0 0 14px rgba(0,229,255,.55), inset 0 0 18px rgba(0,229,255,.18);
+  }
+  .subject-card.scifi::before {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(0deg, rgba(0,229,255,.07) 0 1px, transparent 1px 4px);
+  }
+  .subject-card.scifi::after {
+    content:''; position:absolute; top:-60%; left:-40%; width:40%; height:220%;
+    background: linear-gradient(90deg, transparent, rgba(0,229,255,.35), transparent);
+    transform: rotate(20deg); animation: scifiSweep 3.4s linear infinite; pointer-events:none;
+  }
+  @keyframes scifiSweep { 0%{left:-50%} 100%{left:130%} }
+  .subject-card.scifi:hover {
+    border-color: #ff2bd6; transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 0 26px rgba(255,43,214,.7), 0 0 10px rgba(0,229,255,.8), inset 0 0 22px rgba(255,43,214,.2);
+  }
+  .subject-card.scifi .icon { filter: drop-shadow(0 0 8px #00e5ff); position:relative; z-index:1; }
+  .subject-card.scifi .label {
+    font-family: 'Courier New', monospace; letter-spacing: 1px; color: #e8fbff;
+    text-shadow: 0 0 8px #00e5ff; position:relative; z-index:1; font-size:17px;
+  }
+  .subject-card.scifi .desc { color: #8fdcf0; position:relative; z-index:1; }
+  .subject-card.scifi .tag {
+    font: 700 10px 'Courier New', monospace; letter-spacing: 2px; color:#ff2bd6;
+    border:1px solid #ff2bd6; border-radius:4px; padding:2px 6px; position:relative; z-index:1;
+  }
   .subject-card.disabled {
     opacity: 0.45; cursor: not-allowed;
     pointer-events: none;
@@ -1502,6 +1532,12 @@ initAuth();
       <div class="icon">🏫</div>
       <div class="label">Γενικό Λύκειο</div>
       <div class="desc">Διαδραστική εξάσκηση για τις τάξεις του Γενικού Λυκείου</div>
+    </div>
+    <div class="subject-card scifi" onclick="location.href='gymnasium-gamma-algebra.html'" role="link" tabindex="0">
+      <div class="icon">🚀</div>
+      <span class="tag">HYBRID COURSE</span>
+      <div class="label">Γ' Γυμνασίου - SAT Prep</div>
+      <div class="desc">Δυνάμεις · Μονώνυμα · Πολυώνυμα · Παραγοντοποίηση</div>
     </div>
   </div>
 </div>
