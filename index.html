@@ -856,7 +856,7 @@
   }
 
   /* ── SUBJECT SCREEN ── */
-  #screen-guest-home, #screen-gl, #screen-gl-a, #screen-gl-a-alg, #screen-gl-b {
+  #screen-guest-home, #screen-gl, #screen-gl-a, #screen-gl-a-alg, #screen-gl-a-geo, #screen-gl-a-geo-th, #screen-gl-b {
     min-height: 100vh; align-items: center; justify-content: center;
     padding: 40px 24px; text-align: center;
   }
@@ -1344,7 +1344,7 @@
   /* ── MATH QUOTES BACKGROUND ── */
   #math-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; user-select: none; -webkit-user-select: none; }
   body:has(#screen-welcome.active, #screen-subject.active, #screen-mode.active, #screen-drills-intro.active, #screen-tests-intro.active, #screen-fp-intro.active, #screen-drills-mode.active, #screen-drills-pick.active) #math-bg { background: linear-gradient(160deg, #fff 60%, #f8f0f0 100%); }
-  #screen-welcome, #screen-subject, #screen-mode, #screen-guest-home, #screen-gl, #screen-gl-a, #screen-gl-a-alg, #screen-gl-b { background: transparent; }
+  #screen-welcome, #screen-subject, #screen-mode, #screen-guest-home, #screen-gl, #screen-gl-a, #screen-gl-a-alg, #screen-gl-a-geo, #screen-gl-a-geo-th, #screen-gl-b { background: transparent; }
   #math-bg .mq {
     position: absolute; width: 46vw; max-width: 340px;
     font-family: 'Playfair Display', 'Crimson Text', Georgia, serif; font-style: italic;
@@ -1594,13 +1594,64 @@ initAuth();
       <div class="label">Άλγεβρα</div>
       <div class="desc">Σύνολα · Ανισότητες · Απόλυτη τιμή</div>
     </div>
-    <div class="subject-card disabled">
+    <div class="subject-card" onclick="goScreen('screen-gl-a-geo')" role="button" tabindex="0">
       <div class="icon">📐</div>
       <div class="label">Γεωμετρία</div>
-      <span class="coming-soon">Σύντομα</span>
+      <div class="desc">Τρίγωνα · Κύκλος · Σχετική θέση κύκλων</div>
     </div>
   </div>
   <button class="nav-back-btn" onclick="goScreen('screen-gl')">← Back</button>
+</div>
+
+<div id="screen-gl-a-geo" class="screen">
+  <h2 class="subject-title">Γεωμετρία Α΄ Λυκείου</h2>
+  <p class="subject-sub">Επίλεξε υλικό</p>
+  <div class="subject-cards">
+    <div class="subject-card" onclick="goScreen('screen-gl-a-geo-th')" role="button" tabindex="0">
+      <div class="icon">📖</div>
+      <div class="label">Θεωρία</div>
+      <div class="desc">Λυμένες ασκήσεις · Σωστό–Λάθος · Κύκλος</div>
+    </div>
+    <div class="subject-card" onclick="location.href='geometry-quest.html'" role="link" tabindex="0">
+      <div class="icon">✅</div>
+      <div class="label">Πολλαπλής Επιλογής</div>
+      <div class="desc">Γεωμετρία Α΄ Λυκείου · με σχήματα</div>
+    </div>
+  </div>
+  <button class="nav-back-btn" onclick="goScreen('screen-gl-a')">← Back</button>
+</div>
+
+<div id="screen-gl-a-geo-th" class="screen">
+  <h2 class="subject-title">Θεωρία Γεωμετρίας Α΄ Λυκείου</h2>
+  <p class="subject-sub">Επίλεξε φυλλάδιο</p>
+  <div class="subject-cards">
+    <div class="subject-card" onclick="location.href='geometry-a-1-lymenes-askiseis.html'" role="link" tabindex="0">
+      <div class="icon">1️⃣</div>
+      <div class="label">Λυμένες Ασκήσεις</div>
+      <div class="desc">Κεφάλαιο 3 · Τρίγωνα</div>
+    </div>
+    <div class="subject-card" onclick="location.href='geometry-a-2-lyseis-alyton.html'" role="link" tabindex="0">
+      <div class="icon">2️⃣</div>
+      <div class="label">Λύσεις Αλύτων Ασκήσεων</div>
+      <div class="desc">Κεφάλαιο 3 · Τρίγωνα</div>
+    </div>
+    <div class="subject-card" onclick="location.href='geometry-a-3-lyseis-1-16.pdf'" role="link" tabindex="0">
+      <div class="icon">3️⃣</div>
+      <div class="label">Λύσεις Ασκήσεων 1–16</div>
+      <div class="desc">Με σχήματα · 18 σελίδες</div>
+    </div>
+    <div class="subject-card" onclick="location.href='geometry-a-4-sosto-lathos.pdf'" role="link" tabindex="0">
+      <div class="icon">4️⃣</div>
+      <div class="label">Σωστό – Λάθος</div>
+      <div class="desc">60 προτάσεις με απαντήσεις</div>
+    </div>
+    <div class="subject-card" onclick="location.href='geometry-a-5-kyklos.pdf'" role="link" tabindex="0">
+      <div class="icon">5️⃣</div>
+      <div class="label">Κύκλος και Σχετική Θέση Κύκλων</div>
+      <div class="desc">Θέματα Τράπεζας Θεμάτων</div>
+    </div>
+  </div>
+  <button class="nav-back-btn" onclick="goScreen('screen-gl-a-geo')">← Back</button>
 </div>
 
 <div id="screen-gl-a-alg" class="screen">
