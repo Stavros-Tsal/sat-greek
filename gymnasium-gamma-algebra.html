@@ -276,18 +276,48 @@ function xpStats(t){
  t.q.forEach(function(q,i){var ok=(t.ans[i]===q.ans);if(ok)score++;per[q.ch]=per[q.ch]||{t:q.chTitle,c:0,n:0};per[q.ch].n++;if(ok)per[q.ch].c++;});
  return {score:score,per:per,pct:Math.round(100*score/t.q.length)};
 }
+function xpPdf(jpeg,w,h,name){
+ var enc=new TextEncoder(),parts=[],len=0,offs=[];
+ function put(x){var b=(typeof x==='string')?enc.encode(x):x;parts.push(b);len+=b.length;}
+ var W=595,H=Math.round(595*h/w);
+ put('%PDF-1.4\n');
+ offs[1]=len;put('1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n');
+ offs[2]=len;put('2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n');
+ offs[3]=len;put('3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 '+W+' '+H+']/Resources<</XObject<</Im0 4 0 R>>>>/Contents 5 0 R>>endobj\n');
+ offs[4]=len;put('4 0 obj<</Type/XObject/Subtype/Image/Width '+w+'/Height '+h+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+jpeg.length+'>>stream\n');put(jpeg);put('\nendstream endobj\n');
+ var c='q '+W+' 0 0 '+H+' 0 0 cm /Im0 Do Q';
+ offs[5]=len;put('5 0 obj<</Length '+c.length+'>>stream\n'+c+'\nendstream endobj\n');
+ var xr=len;put('xref\n0 6\n0000000000 65535 f \n');
+ for(var k=1;k<=5;k++)put(('0000000000'+offs[k]).slice(-10)+' 00000 n \n');
+ put('trailer<</Size 6/Root 1 0 R>>\nstartxref\n'+xr+'\n%%EOF');
+ var out=new Uint8Array(len),p=0;parts.forEach(function(b){out.set(b,p);p+=b.length;});
+ var blob=new Blob([out],{type:'application/pdf'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+ link.href=url;link.download=name;document.body.appendChild(link);link.click();document.body.removeChild(link);
+ setTimeout(function(){URL.revokeObjectURL(url);},1500);
+}
 function exportResults(id){
  var t=TESTS[id],s=xpStats(t),name=window.prompt('Student name (optional):','')||'';
- var h='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+t.title+' - results</title>'+xpStyle()+'</head><body>';
- h+='<h1>Ασκήσεις Γ΄ Γυμνασίου: '+t.title+', results</h1><p class="m">Σταύρος Τσαλαπάτης · © 2026 · '+new Date().toLocaleDateString('en-GB')+'</p>';
- if(name)h+='<p><b>Student:</b> '+xpEsc(name)+'</p>';
- h+='<h2>Score: '+s.score+' / '+t.q.length+' ('+s.pct+'%)</h2><table><tr><th>Chapter</th><th>Correct</th></tr>';
- Object.keys(s.per).forEach(function(k){h+='<tr><td>'+k+'. '+s.per[k].t+'</td><td>'+s.per[k].c+' / '+s.per[k].n+'</td></tr>';});
- h+='</table><p class="m">Time used: '+fmtTime(t.used)+(t.timed?' of '+fmtTime(t.seconds):' (untimed)')+'.</p>';
- h+='<table><tr><th>Question</th><th>Your answer</th><th>Correct answer</th><th>Result</th></tr>';
- t.q.forEach(function(q,i){var a=t.ans[i],ok=a===q.ans;h+='<tr><td>'+(i+1)+'</td><td>'+(a===undefined?'—':LET[a])+'</td><td>'+LET[q.ans]+'</td><td class="'+(ok?'c':'w')+'">'+(ok?'✓':'✗')+'</td></tr>';});
- h+='</table></body></html>';
- xpSave(h,t.fname.replace('answers-with-explanations','results'));
+ var W=1240,H=1754,cv=document.createElement('canvas');cv.width=W;cv.height=H;
+ var x=cv.getContext('2d'),F='Georgia, "Times New Roman", Arial, sans-serif',y=0;
+ x.fillStyle='#fff';x.fillRect(0,0,W,H);
+ x.fillStyle='#1d2433';x.font='bold 44px '+F;x.fillText(t.title+' – results',80,110);
+ x.fillStyle='#666';x.font='24px '+F;x.fillText('Σταύρος Τσαλαπάτης · © 2026 · '+new Date().toLocaleDateString('en-GB'),80,150);
+ y=215;x.fillStyle='#1d2433';x.font='30px '+F;
+ if(name){x.fillText('Student: '+name,80,y);y+=48;}
+ x.font='bold 52px '+F;x.fillStyle=s.pct>=50?'#127a3b':'#b3261e';x.fillText('Score: '+s.score+' / '+t.q.length+'  ('+s.pct+'%)',80,y+10);y+=50;
+ x.fillStyle='#666';x.font='24px '+F;x.fillText('Time used: '+fmtTime(t.used)+(t.timed?' of '+fmtTime(t.seconds):' (untimed)'),80,y+10);y+=60;
+ function row(cols,xs,yy,bold,fill){
+  if(fill){x.fillStyle=fill;x.fillRect(80,yy-26,W-160,38);}
+  x.font=(bold?'bold ':'')+'24px '+F;
+  cols.forEach(function(c,i){x.fillStyle=(c&&c.col)||'#1d2433';x.fillText((c&&c.t!==undefined)?c.t:c,xs[i],yy);});
+  x.strokeStyle='#ccd';x.beginPath();x.moveTo(80,yy+12);x.lineTo(W-80,yy+12);x.stroke();
+ }
+ row(['Chapter','Correct'],[90,900],y,true,'#eef0f6');y+=40;
+ Object.keys(s.per).forEach(function(k){row([k+'. '+s.per[k].t,s.per[k].c+' / '+s.per[k].n],[90,900],y,false);y+=40;});
+ y+=40;row(['Question','Your answer','Correct answer','Result'],[90,330,620,930],y,true,'#eef0f6');y+=40;
+ t.q.forEach(function(q,i){var a=t.ans[i],ok=a===q.ans;
+  row([String(i+1),a===undefined?'—':LET[a],LET[q.ans],{t:ok?'Correct':'Wrong',col:ok?'#127a3b':'#b3261e'}],[90,330,620,930],y,false,i%2?'#f8f9fc':null);y+=38;});
+ cv.toBlob(function(b){b.arrayBuffer().then(function(buf){xpPdf(new Uint8Array(buf),W,H,t.fname.replace('answers-with-explanations','results').replace('.html','.pdf'));});},'image/jpeg',0.92);
 }
 function exportMistakes(id){
  var t=TESTS[id],s=xpStats(t),name=window.prompt('Student name (optional):','')||'',n=0;
