@@ -362,7 +362,7 @@ function results(){setK();
  ${secBlock('Reading and Writing','RW',rs,54)}${secBlock('Math','Math',ms,44)}
  <h3 class="serif" style="margin-top:40px">Approximate Raw-to-Scaled Conversion</h3><p class="muted">Approximate ranges. Actual conversions vary by test date due to equating and depend on the Module 2 received. Practice only; scores are unofficial. The total is the sum of the two section ranges.</p>
  ${tbl(TABLE_RW,rs,'Reading and Writing / 54')}<div style="height:18px"></div>${tbl(TABLE,ms,'Math / 44')}
- ${sheetBtns()}<div class="noprint" style="margin-top:14px"><button class="btn alt" onclick="teacher()">Teacher review</button></div><div id="rv"></div><div style="height:60px"></div>`}
+ ${sheetBtns()}<div id="rv"></div><div style="height:60px"></div>`}
 
 /* ---- v3: student/teacher report ---- */
 function reportHTML(){const sd=scoreData(),out=[];
@@ -442,13 +442,7 @@ function sheetHTML(kind){const sd=scoreData();
 function printSheet(kind){setK();const rv=$('rv');rv.innerHTML=sheetHTML(kind);rv.scrollIntoView({behavior:'smooth'});
  const imgs=[...rv.querySelectorAll('img')];Promise.all(imgs.map(i=>i.decode?i.decode().catch(()=>{}):0)).then(()=>setTimeout(printMistakes,350))}
 
-const TCODE='CLCTEACHER';
-function teacher(){setK();const c=prompt('Teacher access code');if(c===null)return;if(c.trim()!==TCODE){alert('Incorrect code');return}showRev('all');$('rv').scrollIntoView()}
-function showRev(f){let h='<div class="strip" style="margin-top:36px"><div class="n">★</div><div class="s"><small>TEACHER COPY</small><b>Question Review</b></div><div class="m noprint" style="cursor:pointer" onclick="showRev(\'all\')">ALL</div><div class="m noprint" style="cursor:pointer" onclick="showRev(\'wrong\')">INCORRECT ONLY</div></div>';
- MODS.forEach(m=>{const st=S[m.id];m.questions.forEach((q,i)=>{const a=st.ans[i],ok=correct(q,a);if(f==='wrong'&&ok)return;
-  const chs=q.mc?'<div class="choices">'+['A','B','C','D'].map((L,k)=>`<div class="choice ${L===q.ca[0]?'sel':''}" style="cursor:default${a===L&&!ok?';border-color:#DC2626;background:#fdecec':''}"><span class="cl">${L}</span><img alt="" ${wst(q.cw[k],3)} src="${img(q.ch[k])}"></div>`).join('')+'</div>':'';
-  h+=`<div style="margin:22px 0;break-inside:avoid"><div class="qbar" style="background:${ok?'#d7f0de':'#f8d9d9'}"><span class="no">${m.id} · ${i+1}</span><span>${esc(q.skillname)}</span><span class="ty">${ok?'CORRECT':'INCORRECT'} · STUDENT: ${a?esc(a):'BLANK'} · KEY: ${esc(q.ca.join(' or '))}</span></div><div class="qbody">${stemHTML(q)}${chs}${q.rat?`<h4 style="font-size:11px;letter-spacing:.14em;margin:16px 0 6px;color:var(--ind)">RATIONALE (COLLEGE BOARD)</h4><img class="qimg" alt="" ${wst(q.rw,2.5)} src="${img(q.rat)}">`:`<h4 style="font-size:11px;letter-spacing:.14em;margin:16px 0 6px;color:var(--ind)">EXPLANATION</h4><p style="max-width:880px">${esc(q.ex)}</p>${dmHTML(q)}`}</div></div>`})});
- $('rv').innerHTML=h}
+
 
 let calc=null;const CW={x:null,y:null,w:560,h:580},CMIN={w:300,h:280};
 function clampCalc(){const vw=innerWidth,vh=innerHeight;CW.w=Math.max(CMIN.w,Math.min(CW.w,vw-8));CW.h=Math.max(CMIN.h,Math.min(CW.h,vh-8));
