@@ -121,6 +121,19 @@ function drillTable(att) {
   return h + '</table>';
 }
 
+// ── December Recommended Questions (score report per attempt) ──
+function decTable(att) {
+  const rows = att.filter(x => x.src === 'december').sort((a, b) => attTime(a) < attTime(b) ? 1 : -1);
+  if (!rows.length) return '<p class="small">Δεν υπάρχουν προσπάθειες ακόμα.</p>';
+  let h = '<table><tr><th>Ημερομηνία</th><th class="n">Σκορ</th><th class="n">Ποσοστό</th><th class="n">Αναπάντητες</th><th class="n">Χρόνος</th><th>Λάθος / αναπάντητες (αρ. ερώτησης)</th></tr>';
+  rows.forEach(x => {
+    const t = attTime(x), d = t ? new Date(t).toLocaleString('el-GR') : '—';
+    const ms = x.ms || 0, tm = ms ? Math.floor(ms / 60000) + ':' + String(Math.floor(ms / 1000) % 60).padStart(2, '0') : '—';
+    h += '<tr><td>' + esc(d) + (x.mode === 'picked' ? ' <span class="small">(επιλεγμένες)</span>' : '') + '</td><td class="n"><b>' + x.correct + ' / ' + x.total + '</b></td><td class="n">' + (x.pct != null ? x.pct + '%' : '—') + '</td><td class="n">' + (x.unanswered || 0) + '</td><td class="n small">' + tm + '</td><td class="small">' + ((x.wrong || []).map(esc).join(', ') || '—') + '</td></tr>';
+  });
+  return h + '</table>';
+}
+
 // ── Practice tests ──
 function testTable(att, src, label, usesScore, maxScore) {
   const rows = att.filter(x => x.src === src);
@@ -211,6 +224,7 @@ function renderReport(att, who) {
   h += '<h2>College Board — English (Homework / Review ανά skill)</h2>' + cbTable(att, 'english', EN_ORDER);
   h += '<h2>College Board — Related Questions (English)</h2>' + rqTable(att);
   h += '<h2>Drills (Math)</h2>' + drillTable(att);
+  h += '<h2>December Recommended Questions — Score report</h2>' + decTable(att);
   h += '<h2>Fast Track</h2>' + testTable(att, 'fasttrack', 'Module / Part', false);
   h += '<h2>Math Practice Tests</h2>' + testTable(att, 'mathtest', 'Test', true, 800);
   h += '<h2>Full Practice Tests</h2>' + testTable(att, 'full', 'Test', true, 1600);
