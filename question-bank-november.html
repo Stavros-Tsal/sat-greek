@@ -131,6 +131,19 @@ body.inquiz .fab{display:flex}
 .chh,.lvh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.chh{justify-content:space-between;margin-bottom:8px}
 .chh h3{font-size:17px;color:var(--crimson)}.chh small,.lvh small{color:var(--muted);font-weight:400;font-size:12px}
 .lvr{margin-top:12px}.lvh{margin-bottom:8px}.lvh .tag{margin-left:0}.btn.sm{padding:5px 11px;font-size:12px;margin-left:auto}
+#tabs{margin:8px 0 16px}
+.tabrow{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start}
+.chtabs{border-bottom:2px solid var(--crimson)}
+.tabbtn{font-family:inherit;font-size:13px;font-weight:600;border:1.5px solid var(--border);border-bottom:0;background:#fff;color:#334;padding:8px 14px;border-radius:9px 9px 0 0;cursor:pointer;display:flex;align-items:center;gap:7px}
+.tabbtn small{font-weight:400;font-size:11px;color:var(--muted)}
+.tabbtn.act{background:var(--crimson);border-color:var(--crimson);color:#fff}.tabbtn.act small{color:#dbeafe}
+.tabbtn:disabled{opacity:.4;cursor:not-allowed}
+.lvtabs{margin-top:8px;padding-left:2px}
+.lvtabs .tabbtn{border-bottom:1.5px solid var(--border);border-radius:8px;padding:6px 12px}
+.lvtabs .tabbtn.lv0.act{background:#1a6b3a;border-color:#1a6b3a}.lvtabs .tabbtn.lv1.act{background:#c27a00;border-color:#c27a00}.lvtabs .tabbtn.lv2.act{background:#a32020;border-color:#a32020}
+.tabbtn .car{font-size:10px}
+.tabpanel{display:flex;flex-wrap:wrap;gap:6px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:8px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+.tabpanel .dot{width:38px;height:38px;font-size:13px;font-weight:600;border-radius:8px}
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -170,7 +183,7 @@ body.inquiz .fab{display:flex}
 <div id="s-quiz" class="screen">
   <div class="top"><span id="plabel"></span><span id="pstat"></span></div>
   <div class="bar"><i id="pbar" style="width:0"></i></div>
-  <div class="dots" id="dots"></div>
+  <div id="tabs"></div>
   <div id="qbox"></div>
   <div class="foot"><button class="btn ghost" onclick="finish()">Finish &amp; see results</button></div>
 </div>
@@ -284,7 +297,7 @@ function startPicked(){ if(!picks.size) return; begin([...picks].sort((a,b)=>a-b
 function begin(list, p){
   sel = list; picked = p; cur = 0; st = {}; finished = false; startMs = Date.now(); elapsed = 0;
   clearInterval(tid); tid = setInterval(tick, 1000); tick();
-  renderQuiz(); show('s-quiz');
+  syncTabs(); renderQuiz(); show('s-quiz');
 }
 function fmt(ms){ const s=Math.floor(ms/1000), m=Math.floor(s/60); return String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
 function elapsedNow(){ return finished ? elapsed : Date.now()-startMs; }
@@ -319,7 +332,7 @@ function renderQuiz(keepScroll){
   $('plabel').textContent = `Question ${cur+1} of ${sel.length}`;
   $('pstat').textContent = `✓ ${S.c}  ✗ ${S.w}  · ${S.left} left`;
   $('pbar').style.width = (100*(S.c+S.w)/sel.length)+'%';
-  $('dots').innerHTML = sel.map((k,j)=>{ const t=st[k]||{}; return `<button class="dot${t.ok===true?' ok':t.ok===false?' bad':''}${j===cur?' cur':''}${t.bm?' bm':''}" onclick="goTo(${j})" title="${qlabel(k)}">${Q[k].n}</button>`; }).join('');
+  renderTabs();
   let h = `<div class="qcard"><div class="qh"><span><span class="qn">Question ${q.n}</span> <span class="tag lv${q.l}">${DOM[q.d]} · ${LVN[q.l]}</span></span><button class="bm-btn${s.bm?' on':''}" onclick="toggleBm(${i})">⚑ ${s.bm?'Marked':'Mark for review'}</button></div><div class="stem">${q.q}</div>`;
   if (q.o) {
     h += '<div class="opts lt">' + q.o.map((o,j)=>{ const L=LET[j]; let c=''; if(answered){ if(L===q.a) c=' right'; else if(L===s.given) c=' wrong'; } return `<button class="opt${c}" ${answered?'disabled':''} onclick="chooseOpt(${i},'${L}')"><span class="L">${L}</span><span>${o}</span></button>`; }).join('') + '</div>';
@@ -330,7 +343,27 @@ function renderQuiz(keepScroll){
   h += `<div class="nav"><button class="btn ghost" ${cur===0?'disabled':''} onclick="goTo(${cur-1})">← Previous</button><button class="btn" ${cur===sel.length-1?'disabled':''} onclick="goTo(${cur+1})">Next →</button></div></div>`;
   $('qbox').innerHTML = h; typeset($('qbox'));
 }
-function goTo(j){ if(j<0||j>=sel.length) return; cur=j; renderQuiz(); window.scrollTo(0,0); }
+// ── chapter / level tabs (top-left, open downwards) ──
+let tabD = 0, tabL = 0, tabOpen = true;
+function syncTabs(){ const q = Q[sel[cur]]; if (q) { tabD = q.d; tabL = q.l; tabOpen = true; } }
+function setTabD(d){ tabD = d; const ls = [0,1,2].filter(l => sel.some(k => Q[k].d===d && Q[k].l===l)); if (!ls.includes(tabL)) tabL = ls[0]; tabOpen = true; renderTabs(); }
+function setTabL(l){ if (l===tabL) tabOpen = !tabOpen; else { tabL = l; tabOpen = true; } renderTabs(); }
+function tabCount(d,l){ const idx = sel.filter(k => Q[k].d===d && (l===null || Q[k].l===l)); let c=0,w=0; idx.forEach(k=>{ const t=st[k]; if(t&&t.ok!==undefined) t.ok?c++:w++; }); return {n:idx.length,c,w}; }
+function renderTabs(){
+  let h = '<div class="tabrow chtabs">';
+  for (let d=0; d<4; d++){ const t = tabCount(d,null); h += `<button class="tabbtn${d===tabD?' act':''}" ${t.n?'':'disabled'} onclick="setTabD(${d})">${DOM[d]}<small>${t.c+t.w}/${t.n}</small></button>`; }
+  h += '</div><div class="tabrow lvtabs">';
+  for (let l=0; l<3; l++){ const t = tabCount(tabD,l); h += `<button class="tabbtn lv${l}${l===tabL&&tabOpen?' act':''}" ${t.n?'':'disabled'} onclick="setTabL(${l})">${LVN[l]}<small>${t.c+t.w}/${t.n}</small><span class="car">${l===tabL&&tabOpen?'▴':'▾'}</span></button>`; }
+  h += '</div>';
+  if (tabOpen){
+    h += '<div class="tabpanel">';
+    sel.forEach((k,j)=>{ const q=Q[k]; if (q.d!==tabD||q.l!==tabL) return; const t=st[k]||{};
+      h += `<button class="dot${t.ok===true?' ok':t.ok===false?' bad':''}${j===cur?' cur':''}${t.bm?' bm':''}" onclick="goTo(${j})" title="${qlabel(k)}">${q.n}</button>`; });
+    h += '</div>';
+  }
+  $('tabs').innerHTML = h;
+}
+function goTo(j){ if(j<0||j>=sel.length) return; cur=j; syncTabs(); renderQuiz(); window.scrollTo(0,0); }
 function corrLabel(i){ return Q[i].a; }
 function givenLabel(i){ const s=st[i]; if(!s||s.given===undefined) return '(no answer)'; return String(s.given).replace(/</g,'&lt;'); }
 
